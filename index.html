@@ -28,7 +28,16 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .tabs {
+        .header h1 {
+            margin: 0 0 10px 0;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .race-tabs {
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
@@ -39,7 +48,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .tab-button {
+        .race-tab-button {
             padding: 10px 20px;
             border: none;
             background-color: #ecf0f1;
@@ -51,12 +60,12 @@
             font-weight: 500;
         }
 
-        .tab-button:hover {
+        .race-tab-button:hover {
             background-color: #3498db;
             color: white;
         }
 
-        .tab-button.active {
+        .race-tab-button.active {
             background-color: #2c3e50;
             color: white;
         }
@@ -66,6 +75,35 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* サブタブ（能力・期待値）のスタイル */
+        .sub-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .sub-tab-button {
+            padding: 10px 30px;
+            border: none;
+            background: none;
+            color: #7f8c8d;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .sub-tab-button:hover {
+            color: #3498db;
+        }
+
+        .sub-tab-button.active {
+            color: #2c3e50;
+            border-bottom-color: #3498db;
         }
 
         .loading {
@@ -84,65 +122,107 @@
 
         /* サマリーセクションのスタイル */
         .summary-section {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #dee2e6;
+            margin-bottom: 30px;
         }
 
         .summary-title {
             font-size: 20px;
             font-weight: bold;
             color: #2c3e50;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
         }
 
         .summary-card {
-            background-color: white;
-            padding: 15px;
+            background-color: #f8f9fa;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
         }
 
         .summary-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            border-color: #3498db;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .horse-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .horse-number {
+            background-color: #2c3e50;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
         }
 
         .horse-name {
             font-weight: bold;
             color: #2c3e50;
-            font-size: 16px;
-            margin-bottom: 8px;
+            font-size: 18px;
         }
 
         .horse-stats {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            font-size: 14px;
+        }
+
+        .stat-group {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .stat-group-title {
+            font-weight: bold;
+            color: #34495e;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            opacity: 0.7;
         }
 
         .stat-item {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 5px;
+            margin: 5px 0;
+            font-size: 14px;
         }
 
         .stat-label {
             color: #7f8c8d;
-            font-weight: normal;
+            font-size: 13px;
         }
 
         .stat-value {
@@ -150,33 +230,37 @@
             color: #2c3e50;
         }
 
+        /* 印のバッジスタイル */
         .mark-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            font-size: 16px;
             font-weight: bold;
         }
 
         .mark-◎ { background-color: #FF6B6B; color: white; }
         .mark-○ { background-color: #4ECDC4; color: white; }
         .mark-▲ { background-color: #95E1D3; color: #2c3e50; }
-        .mark-△ { background-color: #F8F9FA; color: #2c3e50; border: 1px solid #dee2e6; }
+        .mark-△ { background-color: #F8F9FA; color: #2c3e50; border: 2px solid #dee2e6; }
         .mark-☆ { background-color: #FFD700; color: #2c3e50; }
         .mark-⭐︎ { background-color: #FFA07A; color: white; }
         .mark-× { background-color: #e74c3c; color: white; }
         .mark-消 { background-color: #95a5a6; color: white; }
 
-        .odds-value {
-            color: #e74c3c;
-            font-weight: bold;
-        }
+        /* 特定の値のスタイル */
+        .odds-value { color: #e74c3c; }
+        .score-value { color: #3498db; font-size: 18px; }
+        .popularity-value { color: #16a085; }
 
-        .score-value {
-            color: #3498db;
-            font-weight: bold;
-            font-size: 16px;
-        }
+        /* トラック適性の表示 */
+        .track-aptitude-0 { color: #95a5a6; }
+        .track-aptitude-1 { color: #3498db; }
+        .track-aptitude-2 { color: #2ecc71; }
+        .track-aptitude-3 { color: #e74c3c; font-weight: bold; }
 
         .html-content {
             margin-top: 30px;
@@ -186,15 +270,19 @@
 
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
-            .tabs {
+            .race-tabs {
                 flex-direction: column;
             }
 
-            .tab-button {
+            .race-tab-button {
                 width: 100%;
             }
 
             .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .horse-stats {
                 grid-template-columns: 1fr;
             }
         }
@@ -207,7 +295,7 @@
             <p>レースを選択して詳細データを確認</p>
         </div>
 
-        <div class="tabs" id="tabs">
+        <div class="race-tabs" id="raceTabs">
             <div class="loading">レース情報を読み込み中...</div>
         </div>
 
@@ -224,6 +312,20 @@
 
         // データを格納
         let racesData = {};
+        let currentRace = null;
+        let currentSubTab = 'ability'; // 'ability' or 'value'
+
+        // 印の優先順位
+        const markPriority = {
+            '◎': 1,
+            '○': 2,
+            '▲': 3,
+            '△': 4,
+            '☆': 5,
+            '⭐︎': 6,
+            '×': 7,
+            '消': 8
+        };
 
         // 初期化
         async function init() {
@@ -246,21 +348,35 @@
                 }
 
                 // タブを作成
-                createTabs();
+                createRaceTabs();
 
             } catch (error) {
                 console.error('初期化エラー:', error);
-                document.getElementById('tabs').innerHTML =
+                document.getElementById('raceTabs').innerHTML =
                     '<div class="error">データの読み込みに失敗しました。リポジトリ設定を確認してください。</div>';
             }
         }
 
-        // タブを作成
-        function createTabs() {
-            const tabsContainer = document.getElementById('tabs');
+        // レース名から数字を抽出してソート用の値を作成
+        function getRaceSortValue(raceName) {
+            const match = raceName.match(/(\D+)(\d+)R/);
+            if (match) {
+                const place = match[1];
+                const raceNum = parseInt(match[2]);
+                return place + raceNum.toString().padStart(2, '0');
+            }
+            return raceName;
+        }
+
+        // レースタブを作成
+        function createRaceTabs() {
+            const tabsContainer = document.getElementById('raceTabs');
             tabsContainer.innerHTML = '';
 
-            const raceNames = Object.keys(racesData).sort();
+            // レース名をソート（場所名＋レース番号順）
+            const raceNames = Object.keys(racesData).sort((a, b) => {
+                return getRaceSortValue(a).localeCompare(getRaceSortValue(b));
+            });
 
             if (raceNames.length === 0) {
                 tabsContainer.innerHTML = '<div class="error">レースデータが見つかりません</div>';
@@ -269,7 +385,7 @@
 
             raceNames.forEach((raceName, index) => {
                 const button = document.createElement('button');
-                button.className = 'tab-button';
+                button.className = 'race-tab-button';
                 button.textContent = raceName;
                 button.onclick = () => selectRace(raceName);
 
@@ -284,24 +400,41 @@
 
         // レースを選択
         async function selectRace(raceName) {
+            currentRace = raceName;
+
             // アクティブタブを更新
-            document.querySelectorAll('.tab-button').forEach(btn => {
+            document.querySelectorAll('.race-tab-button').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.textContent === raceName) {
                     btn.classList.add('active');
                 }
             });
 
+            await displayRaceContent();
+        }
+
+        // レースコンテンツを表示
+        async function displayRaceContent() {
             const contentArea = document.getElementById('content');
             contentArea.innerHTML = '<div class="loading">データを読み込み中...</div>';
 
             try {
+                // サブタブを作成
+                const subTabsHtml = `
+                    <div class="sub-tabs">
+                        <button class="sub-tab-button ${currentSubTab === 'ability' ? 'active' : ''}"
+                                onclick="switchSubTab('ability')">能力順</button>
+                        <button class="sub-tab-button ${currentSubTab === 'value' ? 'active' : ''}"
+                                onclick="switchSubTab('value')">期待値順</button>
+                    </div>
+                `;
+
                 // JSONデータからサマリーを作成
-                const jsonData = racesData[raceName];
-                const summaryHtml = createSummary(jsonData);
+                const jsonData = racesData[currentRace];
+                const summaryHtml = createSummary(jsonData, currentSubTab);
 
                 // HTMLファイルを読み込み
-                const htmlResponse = await fetch(`${BASE_URL}/html/${raceName}.html`);
+                const htmlResponse = await fetch(`${BASE_URL}/html/${currentRace}.html`);
                 let htmlContent = '';
 
                 if (htmlResponse.ok) {
@@ -314,7 +447,7 @@
                 }
 
                 // コンテンツを表示
-                contentArea.innerHTML = summaryHtml + '<div class="html-content">' + htmlContent + '</div>';
+                contentArea.innerHTML = subTabsHtml + summaryHtml + '<div class="html-content">' + htmlContent + '</div>';
 
             } catch (error) {
                 console.error('レース情報の表示エラー:', error);
@@ -322,50 +455,137 @@
             }
         }
 
+        // サブタブを切り替え
+        function switchSubTab(tab) {
+            currentSubTab = tab;
+            displayRaceContent();
+        }
+
+        // トラック適性の表示テキスト
+        function getTrackAptitudeText(value) {
+            const texts = ['低', '普通', '高', '最高'];
+            return texts[value] || '-';
+        }
+
         // サマリーを作成
-        function createSummary(jsonData) {
+        function createSummary(jsonData, sortType) {
             if (!jsonData || !jsonData.horses) return '';
 
-            const horses = jsonData.horses;
+            const horses = [...jsonData.horses];
 
-            // スコアでソート
-            const sortedHorses = [...horses].sort((a, b) => b.score - a.score);
+            // ソート処理
+            horses.sort((a, b) => {
+                const markField = sortType === 'ability' ? 'mark' : 'investment_mark';
+                const aPriority = markPriority[a[markField]] || 999;
+                const bPriority = markPriority[b[markField]] || 999;
+
+                if (aPriority !== bPriority) {
+                    return aPriority - bPriority;
+                }
+
+                // 同じ印の場合はスコアでソート
+                return b.score - a.score;
+            });
 
             let html = `
                 <div class="summary-section">
-                    <div class="summary-title">レース分析サマリー</div>
+                    <div class="summary-title">
+                        <span>${sortType === 'ability' ? '能力順' : '期待値順'}表示</span>
+                    </div>
                     <div class="summary-grid">
             `;
 
-            sortedHorses.forEach((horse, index) => {
-                const rankClass = index < 3 ? `rank-${index + 1}` : '';
+            horses.forEach((horse) => {
+                const markField = sortType === 'ability' ? 'mark' : 'investment_mark';
+                const mark = horse[markField];
 
                 html += `
-                    <div class="summary-card ${rankClass}">
-                        <div class="horse-name">
-                            ${horse.horse_number}番 ${horse.name}
-                            ${horse.mark ? `<span class="mark-badge mark-${horse.mark}">${horse.mark}</span>` : ''}
+                    <div class="summary-card">
+                        <div class="card-header">
+                            <div class="horse-info">
+                                <div class="horse-number">${horse.horse_number}</div>
+                                <div class="horse-name">${horse.name}</div>
+                            </div>
+                            ${mark ? `<div class="mark-badge mark-${mark}">${mark}</div>` : ''}
                         </div>
+
                         <div class="horse-stats">
-                            <div class="stat-item">
-                                <span class="stat-label">人気:</span>
-                                <span class="stat-value">${horse.popularity}番人気</span>
+                            <div class="stat-group">
+                                <div class="stat-group-title">基本情報</div>
+                                <div class="stat-item">
+                                    <span class="stat-label">人気</span>
+                                    <span class="stat-value popularity-value">${horse.popularity}番人気</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">オッズ</span>
+                                    <span class="stat-value odds-value">${horse.odds}倍</span>
+                                </div>
                             </div>
-                            <div class="stat-item">
-                                <span class="stat-label">オッズ:</span>
-                                <span class="odds-value">${horse.odds}倍</span>
+
+                            <div class="stat-group">
+                                <div class="stat-group-title">スコア</div>
+                                <div class="stat-item">
+                                    <span class="stat-label">総合スコア</span>
+                                    <span class="stat-value score-value">${horse.score.toFixed(2)}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">総合ポイント</span>
+                                    <span class="stat-value">${horse.total_points.toFixed(2)}</span>
+                                </div>
                             </div>
-                            <div class="stat-item">
-                                <span class="stat-label">スコア:</span>
-                                <span class="score-value">${horse.score.toFixed(2)}</span>
+
+                            <div class="stat-group">
+                                <div class="stat-group-title">パフォーマンス</div>
+                                <div class="stat-item">
+                                    <span class="stat-label">上り3F平均</span>
+                                    <span class="stat-value">${horse['上り3F平均']}秒</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Ave-3F平均</span>
+                                    <span class="stat-value">${horse['Ave-3F平均']}秒</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">PCI平均</span>
+                                    <span class="stat-value">${horse['PCI平均']}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">3F地点差</span>
+                                    <span class="stat-value">${horse['-3F差平均']}秒</span>
+                                </div>
                             </div>
-                            <div class="stat-item">
-                                <span class="stat-label">想定脚質:</span>
-                                <span class="stat-value">${horse.想定脚質}</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">上り3F:</span>
-                                <span class="stat-value">${horse.上り3F平均}秒</span>
+
+                            <div class="stat-group">
+                                <div class="stat-group-title">適性・投資価値</div>
+                                <div class="stat-item">
+                                    <span class="stat-label">想定脚質</span>
+                                    <span class="stat-value">${horse['想定脚質']}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">トラック適性</span>
+                                    <span class="stat-value track-aptitude-${horse.track_aptitude}">
+                                        ${getTrackAptitudeText(horse.track_aptitude)}
+                                    </span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">平均着差</span>
+                                    <span class="stat-value">${horse.avg_margin.toFixed(2)}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">バイアス適性</span>
+                                    <span class="stat-value">${horse.track_bias_aptitude_score.toFixed(1)}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">投資価値</span>
+                                    <span class="stat-value">${horse.investment_value_score.toFixed(1)}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">投資評価</span>
+                                    <span class="stat-value">${horse.investment_rating.toFixed(2)}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">安定性</span>
+                                    <span class="stat-value">${horse.stability_score}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -379,6 +599,9 @@
 
             return html;
         }
+
+        // グローバルに関数を公開
+        window.switchSubTab = switchSubTab;
 
         // ページ読み込み時に初期化
         window.addEventListener('DOMContentLoaded', init);
