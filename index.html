@@ -518,7 +518,7 @@
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">オッズ</span>
-                                    <span class="stat-value odds-value">${horse.odds}倍</span>
+                                    <span class="stat-value odds-value">${horse.odds || '-'}倍</span>
                                 </div>
                             </div>
 
@@ -526,11 +526,11 @@
                                 <div class="stat-group-title">スコア</div>
                                 <div class="stat-item">
                                     <span class="stat-label">総合スコア</span>
-                                    <span class="stat-value score-value">${horse.score.toFixed(2)}</span>
+                                    <span class="stat-value score-value">${horse.score ? horse.score.toFixed(2) : '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">総合ポイント</span>
-                                    <span class="stat-value">${horse.total_points.toFixed(2)}</span>
+                                    <span class="stat-value">${horse.total_points ? horse.total_points.toFixed(2) : '-'}</span>
                                 </div>
                             </div>
 
@@ -538,19 +538,19 @@
                                 <div class="stat-group-title">パフォーマンス</div>
                                 <div class="stat-item">
                                     <span class="stat-label">上り3F平均</span>
-                                    <span class="stat-value">${horse['上り3F平均']}秒</span>
+                                    <span class="stat-value">${horse['上り3F平均'] || '-'}秒</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">Ave-3F平均</span>
-                                    <span class="stat-value">${horse['Ave-3F平均']}秒</span>
+                                    <span class="stat-value">${horse['Ave-3F平均'] || '-'}秒</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">PCI平均</span>
-                                    <span class="stat-value">${horse['PCI平均']}</span>
+                                    <span class="stat-value">${horse['PCI平均'] || '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">3F地点差</span>
-                                    <span class="stat-value">${horse['-3F差平均']}秒</span>
+                                    <span class="stat-value">${horse['-3F差平均'] || '-'}秒</span>
                                 </div>
                             </div>
 
@@ -568,23 +568,23 @@
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">平均着差</span>
-                                    <span class="stat-value">${horse.avg_margin.toFixed(2)}</span>
+                                    <span class="stat-value">${horse.avg_margin != null ? horse.avg_margin.toFixed(2) : '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">バイアス適性</span>
-                                    <span class="stat-value">${horse.track_bias_aptitude_score.toFixed(1)}</span>
+                                    <span class="stat-value">${horse.track_bias_aptitude_score != null ? horse.track_bias_aptitude_score.toFixed(1) : '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">投資価値</span>
-                                    <span class="stat-value">${horse.investment_value_score.toFixed(1)}</span>
+                                    <span class="stat-value">${horse.investment_value_score != null ? horse.investment_value_score.toFixed(1) : '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">投資評価</span>
-                                    <span class="stat-value">${horse.investment_rating.toFixed(2)}</span>
+                                    <span class="stat-value">${horse.investment_rating != null ? horse.investment_rating.toFixed(2) : '-'}</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">安定性</span>
-                                    <span class="stat-value">${horse.stability_score}</span>
+                                    <span class="stat-value">${horse.stability_score || '-'}</span>
                                 </div>
                             </div>
                         </div>
