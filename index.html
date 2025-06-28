@@ -109,6 +109,20 @@
             transform: translateY(-50%);
             display: flex;
             gap: 10px;
+            align-items: center;
+        }
+
+        .last-update {
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 480px) {
+            .last-update {
+                display: none;
+            }
         }
 
         .theme-toggle {
@@ -320,6 +334,8 @@
             background: white;
             padding: 15px;
             border-bottom: 1px solid #e9ecef;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .quick-view-title {
@@ -354,6 +370,7 @@
         }
 
         .quick-view-table {
+            min-width: 800px;
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
@@ -904,6 +921,11 @@
                 font-size: 24px;
             }
 
+            .last-update {
+                display: inline;
+                font-size: 11px;
+            }
+
             .summary-grid {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
@@ -1073,8 +1095,12 @@
                 <h1>競馬出馬表ビューアー</h1>
                 <p>AIスコア分析 & 詳細データ</p>
                 <div class="header-controls">
+                    <span class="last-update" id="lastUpdate"></span>
                     <button class="theme-toggle" onclick="toggleTheme()" title="テーマ切替">
                         <span id="themeIcon">🌙</span>
+                    </button>
+                    <button class="theme-toggle" onclick="forceRefreshData()" title="データを強制更新">
+                        <span>🔄</span>
                     </button>
                 </div>
             </div>
@@ -1113,6 +1139,7 @@
         let selectedForCompare = [];
         let isComparisonMode = false;
         let quickViewMode = 'ability';
+        let lastCommitDate = null; // 最新コミット日時を保存
 
         // 印の優先順位
         const markPriority = {
@@ -1130,25 +1157,20 @@
         // 初期化
         async function init() {
             try {
-                // JSONファイルのリストを取得（GitHub APIを使用）
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/json?ref=${GITHUB_BRANCH}`);
-                if (!response.ok) throw new Error('JSONファイルリストの取得に失敗しました');
+                // 最終更新時刻を取得
+                await fetchLastUpdate();
 
-                const files = await response.json();
-                const jsonFiles = files.filter(file => file.name.endsWith('.json'));
-
-                // 各JSONファイルを読み込み
-                for (const file of jsonFiles) {
-                    const raceName = file.name.replace('.json', '');
-                    const jsonResponse = await fetch(`${BASE_URL}/json/${file.name}`);
-                    if (jsonResponse.ok) {
-                        const jsonData = await jsonResponse.json();
-                        racesData[raceName] = jsonData;
-                    }
+                // キャッシュされたデータをチェック
+                const cachedData = getCachedRaceData();
+                if (cachedData && !isDataExpired(cachedData.timestamp)) {
+                    console.log('キャッシュからデータを読み込み');
+                    racesData = cachedData.data;
+                    createRaceGroups();
+                } else {
+                    console.log('新しいデータを取得');
+                    // キャッシュが古いか存在しない場合は新規取得
+                    await fetchAndCacheRaceData();
                 }
-
-                // レースグループを作成
-                createRaceGroups();
 
                 // テーマを復元
                 const savedTheme = localStorage.getItem('theme');
@@ -1161,6 +1183,173 @@
                 console.error('初期化エラー:', error);
                 document.getElementById('raceGroups').innerHTML =
                     '<div class="error">データの読み込みに失敗しました。リポジトリ設定を確認してください。</div>';
+            }
+        }
+
+        // レースデータを取得してキャッシュ
+        async function fetchAndCacheRaceData() {
+            // JSONファイルのリストを取得（GitHub APIを使用）
+            const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/json?ref=${GITHUB_BRANCH}`);
+            if (!response.ok) throw new Error('JSONファイルリストの取得に失敗しました');
+
+            const files = await response.json();
+            const jsonFiles = files.filter(file => file.name.endsWith('.json'));
+
+            // 各JSONファイルを読み込み
+            for (const file of jsonFiles) {
+                const raceName = file.name.replace('.json', '');
+                const jsonResponse = await fetch(`${BASE_URL}/json/${file.name}`);
+                if (jsonResponse.ok) {
+                    const jsonData = await jsonResponse.json();
+                    racesData[raceName] = jsonData;
+                }
+            }
+
+            // データをキャッシュに保存
+            saveRaceDataToCache(racesData);
+
+            // レースグループを作成
+            createRaceGroups();
+        }
+
+        // キャッシュからデータを取得
+        function getCachedRaceData() {
+            try {
+                const cached = localStorage.getItem('raceDataCache');
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (error) {
+                console.error('キャッシュ読み込みエラー:', error);
+            }
+            return null;
+        }
+
+        // データをキャッシュに保存
+        function saveRaceDataToCache(data) {
+            try {
+                const cacheData = {
+                    data: data,
+                    timestamp: Date.now(),
+                    commitDate: lastCommitDate ? lastCommitDate.getTime() : null
+                };
+                localStorage.setItem('raceDataCache', JSON.stringify(cacheData));
+                console.log('データをキャッシュに保存しました');
+            } catch (error) {
+                console.error('キャッシュ保存エラー:', error);
+                // ローカルストレージが満杯の場合は古いキャッシュをクリア
+                if (error.name === 'QuotaExceededError') {
+                    clearOldCache();
+                    try {
+                        localStorage.setItem('raceDataCache', JSON.stringify(cacheData));
+                    } catch (e) {
+                        console.error('キャッシュ保存に失敗しました:', e);
+                    }
+                }
+            }
+        }
+
+        // キャッシュが期限切れかチェック
+        function isDataExpired(cacheTimestamp) {
+            if (!cacheTimestamp) return true;
+            
+            // 最新コミット日時がある場合は、それより古いキャッシュは無効
+            if (lastCommitDate) {
+                const cacheData = getCachedRaceData();
+                if (cacheData && cacheData.commitDate) {
+                    return cacheData.commitDate < lastCommitDate.getTime();
+                }
+            }
+            
+            // それ以外は24時間で期限切れ
+            const now = Date.now();
+            const age = now - cacheTimestamp;
+            return age > 24 * 60 * 60 * 1000; // 24時間
+        }
+
+        // 古いキャッシュをクリア
+        function clearOldCache() {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('raceData') || key.startsWith('lastUpdate'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+
+        // 最終更新時刻を取得
+        async function fetchLastUpdate() {
+            try {
+                // キャッシュをチェック（20分間有効 - 15分更新間隔より長く設定）
+                const cached = localStorage.getItem('lastUpdateCache');
+                const cacheTime = localStorage.getItem('lastUpdateCacheTime');
+                
+                if (cached && cacheTime) {
+                    const cacheAge = Date.now() - parseInt(cacheTime);
+                    if (cacheAge < 20 * 60 * 1000) { // 20分未満
+                        document.getElementById('lastUpdate').textContent = cached;
+                        // キャッシュからコミット日時も復元
+                        const cachedCommitDate = localStorage.getItem('lastCommitDate');
+                        if (cachedCommitDate) {
+                            lastCommitDate = new Date(parseInt(cachedCommitDate));
+                        }
+                        return;
+                    }
+                }
+
+                // リポジトリの最新コミット情報を取得
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits/${GITHUB_BRANCH}`);
+                if (!response.ok) {
+                    // API制限の場合は静的な日付を表示
+                    if (response.status === 403) {
+                        document.getElementById('lastUpdate').textContent = '最終更新: データ取得制限中';
+                        document.getElementById('lastUpdate').title = 'GitHub API制限のため更新時刻を取得できません';
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const commitDate = new Date(data.commit.committer.date);
+                lastCommitDate = commitDate; // グローバル変数に保存
+                
+                // 日本時間に変換して表示
+                const formatter = new Intl.DateTimeFormat('ja-JP', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Tokyo'
+                });
+                
+                const formattedDate = formatter.format(commitDate);
+                const updateText = `最終更新: ${formattedDate}`;
+                document.getElementById('lastUpdate').textContent = updateText;
+
+                // キャッシュに保存
+                localStorage.setItem('lastUpdateCache', updateText);
+                localStorage.setItem('lastUpdateCacheTime', Date.now().toString());
+                localStorage.setItem('lastCommitDate', commitDate.getTime().toString());
+
+                // 更新からの経過時間も計算
+                const now = new Date();
+                const diffMinutes = Math.floor((now - commitDate) / (1000 * 60));
+                
+                if (diffMinutes < 60) {
+                    document.getElementById('lastUpdate').title = `${diffMinutes}分前に更新`;
+                } else if (diffMinutes < 1440) {
+                    const hours = Math.floor(diffMinutes / 60);
+                    document.getElementById('lastUpdate').title = `${hours}時間前に更新`;
+                } else {
+                    const days = Math.floor(diffMinutes / 1440);
+                    document.getElementById('lastUpdate').title = `${days}日前に更新`;
+                }
+
+            } catch (error) {
+                console.error('最終更新時刻の取得エラー:', error);
+                // エラー時は何も表示しない
             }
         }
 
@@ -1894,6 +2083,16 @@
             }
         });
 
+        // データを強制更新
+        function forceRefreshData() {
+            if (confirm('キャッシュをクリアして最新データを取得しますか？')) {
+                // キャッシュをクリア
+                clearOldCache();
+                // ページをリロード
+                location.reload();
+            }
+        }
+
         // グローバルに関数を公開
         window.switchSubTab = switchSubTab;
         window.toggleMarkFilter = toggleMarkFilter;
@@ -1905,6 +2104,7 @@
         window.changeQuickViewMode = changeQuickViewMode;
         window.toggleTheme = toggleTheme;
         window.scrollToTop = scrollToTop;
+        window.forceRefreshData = forceRefreshData;
 
         // ページ読み込み時に初期化
         window.addEventListener('DOMContentLoaded', init);
