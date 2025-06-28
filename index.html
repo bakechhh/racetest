@@ -1306,9 +1306,9 @@
                 }
 
                 // コンテンツを表示
-                contentArea.innerHTML = subTabsHtml + filterHtml + quickViewHtml +
-                    comparisonHtml + chartHtml + summaryHtml +
-                    '<div class="html-content">' +
+                contentArea.innerHTML = subTabsHtml + filterHtml + quickViewHtml + 
+                    comparisonHtml + chartHtml + summaryHtml + 
+                    '<div class="html-content">' + 
                     '<div class="scroll-hint">← 横スクロールで全体を表示 →</div>' +
                     htmlContent + '</div>';
 
@@ -1321,7 +1321,7 @@
         // フィルターセクションを作成
         function createFilterSection(jsonData) {
             const marks = ['◎', '○', '▲', '△', '☆', '⭐︎', '×', '消'];
-
+            
             return `
                 <div class="filter-section">
                     <div class="filter-title">フィルター & ソート</div>
@@ -1454,7 +1454,7 @@
             return `
                 <div class="chart-section">
                     <div class="chart-title">データ可視化</div>
-
+                    
                     <div style="margin-bottom: 20px;">
                         <div class="chart-title" style="font-size: 13px;">印の分布</div>
                         <div class="mark-distribution">
@@ -1526,7 +1526,7 @@
             // 印でフィルタリング
             if (currentFilters.marks.length > 0) {
                 const markField = currentSubTab === 'ability' ? 'mark' : 'investment_mark';
-                filtered = filtered.filter(horse =>
+                filtered = filtered.filter(horse => 
                     currentFilters.marks.includes(horse[markField])
                 );
             }
@@ -1580,10 +1580,10 @@
                 const delay = index * 0.05;
 
                 html += `
-                    <div class="summary-card ${selectedForCompare.includes(horse.horse_number) ? 'selected-for-compare' : ''}"
+                    <div class="summary-card ${selectedForCompare.includes(horse.horse_number) ? 'selected-for-compare' : ''}" 
                          style="animation-delay: ${delay}s"
                          data-horse-number="${horse.horse_number}">
-                        ${isComparisonMode ? `<input type="checkbox" class="compare-checkbox"
+                        ${isComparisonMode ? `<input type="checkbox" class="compare-checkbox" 
                             ${selectedForCompare.includes(horse.horse_number) ? 'checked' : ''}
                             onclick="event.stopPropagation(); toggleCompareSelection(${horse.horse_number})">` : ''}
                         <div class="card-header" onclick="handleCardClick(${horse.horse_number})">
@@ -1693,7 +1693,7 @@
             } else {
                 currentFilters.marks.push(mark);
             }
-
+            
             // ボタンの状態を更新
             document.querySelectorAll('.mark-filter').forEach(btn => {
                 if (btn.dataset.mark === mark) {
@@ -1719,10 +1719,10 @@
         // 比較モードのトグル
         function toggleComparisonMode() {
             isComparisonMode = !isComparisonMode;
-
+            
             const btn = event.target;
             btn.classList.toggle('active');
-
+            
             const compSection = document.getElementById('comparisonSection');
             if (isComparisonMode) {
                 compSection.classList.add('active');
@@ -1733,7 +1733,7 @@
                 compSection.classList.remove('active');
                 selectedForCompare = [];
             }
-
+            
             // ページを再描画
             displayRaceContent();
         }
@@ -1756,10 +1756,10 @@
                 alert('比較は最大3頭までです');
                 return;
             }
-
+            
             // すぐに比較表示を更新
             updateComparisonDisplay();
-
+            
             // カードの選択状態を更新
             document.querySelectorAll('.summary-card').forEach(card => {
                 const cardNumber = parseInt(card.querySelector('.horse-number').textContent);
@@ -1769,7 +1769,7 @@
                     card.classList.remove('selected-for-compare');
                 }
             });
-
+            
             // チェックボックスの状態を更新
             document.querySelectorAll('.compare-checkbox').forEach(checkbox => {
                 const cardNumber = parseInt(checkbox.closest('.summary-card').querySelector('.horse-number').textContent);
@@ -1851,7 +1851,7 @@
             quickViewMode = mode;
             const jsonData = racesData[currentRace];
             document.getElementById('quickViewContent').innerHTML = createQuickViewTable(jsonData, mode);
-
+            
             document.querySelectorAll('.view-mode-button').forEach(btn => {
                 btn.classList.remove('active');
                 if (btn.textContent === (mode === 'ability' ? '能力' : '期待値')) {
