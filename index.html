@@ -1396,6 +1396,10 @@
                             <th>人気</th>
                             <th>オッズ</th>
                             <th>スコア</th>
+                            <th>バイアス適性</th>
+                            <th>安定性</th>
+                            <th>勝率</th>
+                            <th>複勝率</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1403,6 +1407,9 @@
 
             horses.forEach(horse => {
                 const mark = horse[markField];
+                const winRate = horse.pred_prob_won ? (horse.pred_prob_won * 100).toFixed(1) : '-';
+                const placeRate = horse.pred_prob_in_top3 ? (horse.pred_prob_in_top3 * 100).toFixed(1) : '-';
+                
                 html += `
                     <tr>
                         <td>${mark ? `<span class="mark-badge mark-${mark}" style="width: 25px; height: 25px; font-size: 12px;">${mark}</span>` : '-'}</td>
@@ -1411,6 +1418,10 @@
                         <td>${horse.popularity}番</td>
                         <td>${horse.odds}倍</td>
                         <td>${horse.score.toFixed(2)}</td>
+                        <td>${horse.track_bias_aptitude_score != null ? horse.track_bias_aptitude_score.toFixed(1) : '-'}</td>
+                        <td>${horse.stability_score || '-'}</td>
+                        <td>${winRate}%</td>
+                        <td>${placeRate}%</td>
                     </tr>
                 `;
             });
