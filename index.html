@@ -1582,11 +1582,11 @@
                 html += `
                     <div class="summary-card ${selectedForCompare.includes(horse.horse_number) ? 'selected-for-compare' : ''}"
                          style="animation-delay: ${delay}s"
-                         onclick="handleCardClick(${horse.horse_number})">
+                         data-horse-number="${horse.horse_number}">
                         ${isComparisonMode ? `<input type="checkbox" class="compare-checkbox"
                             ${selectedForCompare.includes(horse.horse_number) ? 'checked' : ''}
                             onclick="event.stopPropagation(); toggleCompareSelection(${horse.horse_number})">` : ''}
-                        <div class="card-header">
+                        <div class="card-header" onclick="handleCardClick(${horse.horse_number})">
                             <div class="horse-info">
                                 <div class="horse-number">${horse.horse_number}</div>
                                 <div class="horse-name">${horse.name}</div>
@@ -1719,7 +1719,6 @@
         // 比較モードのトグル
         function toggleComparisonMode() {
             isComparisonMode = !isComparisonMode;
-            selectedForCompare = [];
 
             const btn = event.target;
             btn.classList.toggle('active');
@@ -1727,10 +1726,15 @@
             const compSection = document.getElementById('comparisonSection');
             if (isComparisonMode) {
                 compSection.classList.add('active');
+                // 比較モードに入ったら選択をリセット
+                selectedForCompare = [];
+                updateComparisonDisplay();
             } else {
                 compSection.classList.remove('active');
+                selectedForCompare = [];
             }
 
+            // ページを再描画
             displayRaceContent();
         }
 
@@ -1753,8 +1757,24 @@
                 return;
             }
 
+            // すぐに比較表示を更新
             updateComparisonDisplay();
-            displayRaceContent();
+
+            // カードの選択状態を更新
+            document.querySelectorAll('.summary-card').forEach(card => {
+                const cardNumber = parseInt(card.querySelector('.horse-number').textContent);
+                if (selectedForCompare.includes(cardNumber)) {
+                    card.classList.add('selected-for-compare');
+                } else {
+                    card.classList.remove('selected-for-compare');
+                }
+            });
+
+            // チェックボックスの状態を更新
+            document.querySelectorAll('.compare-checkbox').forEach(checkbox => {
+                const cardNumber = parseInt(checkbox.closest('.summary-card').querySelector('.horse-number').textContent);
+                checkbox.checked = selectedForCompare.includes(cardNumber);
+            });
         }
 
         // 比較表示の更新
