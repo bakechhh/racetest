@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>競馬出馬表ビューアー</title>
     <style>
         /* リセットとベース設定 */
@@ -10,6 +10,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -17,20 +18,22 @@
             background-color: #f0f2f5;
             color: #1a1a1a;
             line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
         }
 
-        /* コンテナ */
+        /* コンテナ - モバイル最適化 */
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 15px;
+            width: 100%;
+            max-width: 100%;
+            padding: 0 10px;
         }
 
-        /* ヘッダー */
+        /* ヘッダー - モバイル最適化 */
         .header {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
-            padding: 30px 0;
+            padding: 15px 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
@@ -42,112 +45,104 @@
         }
 
         .header h1 {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 700;
-            margin-bottom: 5px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 2px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
 
         .header p {
-            font-size: 14px;
+            font-size: 12px;
             opacity: 0.9;
         }
 
-        /* レース選択エリア */
+        /* レース選択エリア - モバイル最適化 */
         .race-selector {
             background: white;
-            margin: 20px 0;
-            padding: 20px;
-            border-radius: 12px;
+            margin: 10px 0;
+            padding: 15px 10px;
+            border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .race-selector-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             color: #333;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .race-selector-title::before {
             content: "🏇";
-            font-size: 20px;
+            font-size: 16px;
         }
 
-        /* レースグループ */
+        /* レースグループ - モバイル最適化 */
         .race-groups {
-            display: grid;
-            gap: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .race-group {
             border: 1px solid #e0e0e0;
-            border-radius: 8px;
+            border-radius: 6px;
             overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .race-group:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
         }
 
         .race-group-header {
             background: #f8f9fa;
-            padding: 10px 15px;
+            padding: 8px 12px;
             font-weight: 600;
             color: #495057;
             border-bottom: 1px solid #e0e0e0;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .race-group-items {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            padding: 10px;
+            gap: 5px;
+            padding: 8px;
         }
 
         .race-tab-button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: 1px solid #ddd;
             background: white;
             color: #333;
             cursor: pointer;
-            border-radius: 20px;
-            font-size: 13px;
+            border-radius: 16px;
+            font-size: 12px;
             font-weight: 500;
             transition: all 0.2s ease;
             white-space: nowrap;
+            flex: 0 0 auto;
         }
 
-        .race-tab-button:hover {
-            background: #3498db;
-            color: white;
-            border-color: #3498db;
-            transform: scale(1.05);
+        .race-tab-button:active {
+            transform: scale(0.95);
         }
 
         .race-tab-button.active {
             background: #2c3e50;
             color: white;
             border-color: #2c3e50;
-            box-shadow: 0 2px 6px rgba(44, 62, 80, 0.3);
         }
 
-        /* メインコンテンツエリア */
+        /* メインコンテンツエリア - モバイル最適化 */
         .content-area {
             background: white;
-            border-radius: 12px;
+            border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
-        /* サブタブ */
+        /* サブタブ - モバイル最適化 */
         .sub-tabs {
             background: #f8f9fa;
             display: flex;
@@ -156,20 +151,15 @@
 
         .sub-tab-button {
             flex: 1;
-            padding: 15px;
+            padding: 12px;
             border: none;
             background: none;
             color: #6c757d;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             transition: all 0.3s ease;
             position: relative;
-        }
-
-        .sub-tab-button:hover {
-            color: #3498db;
-            background: rgba(52, 152, 219, 0.05);
         }
 
         .sub-tab-button.active {
@@ -190,7 +180,8 @@
         /* ローディング・エラー */
         .loading, .error {
             text-align: center;
-            padding: 60px 20px;
+            padding: 40px 20px;
+            font-size: 14px;
         }
 
         .loading {
@@ -199,64 +190,62 @@
 
         .loading::before {
             content: "⏳ ";
-            font-size: 24px;
+            font-size: 20px;
         }
 
         .error {
             background: #dc3545;
             color: white;
-            border-radius: 8px;
-            margin: 20px;
+            border-radius: 6px;
+            margin: 10px;
         }
 
-        /* サマリーセクション */
+        /* サマリーセクション - モバイル最適化 */
         .summary-section {
-            padding: 20px;
+            padding: 15px 10px;
         }
 
         .summary-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             color: #2c3e50;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .summary-title::before {
             content: "📊";
-            font-size: 20px;
+            font-size: 18px;
         }
 
-        /* 馬カードグリッド */
+        /* 馬カードグリッド - モバイル最適化 */
         .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        /* 馬カード */
+        /* 馬カード - モバイル最適化 */
         .summary-card {
             background: #f8f9fa;
-            border-radius: 12px;
+            border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
             border: 2px solid transparent;
         }
 
-        .summary-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-            border-color: #3498db;
+        .summary-card:active {
+            transform: scale(0.98);
         }
 
-        /* カードヘッダー */
+        /* カードヘッダー - モバイル最適化 */
         .card-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px;
+            padding: 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -265,39 +254,43 @@
         .horse-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .horse-number {
             background: rgba(255,255,255,0.2);
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
 
         .horse-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
 
-        /* 印バッジ */
+        /* 印バッジ - モバイル最適化 */
         .mark-badge {
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            flex-shrink: 0;
         }
 
         .mark-◎ { background: #ff4757; color: white; }
@@ -309,51 +302,57 @@
         .mark-× { background: #ee5a6f; color: white; }
         .mark-消 { background: #a4b0be; color: white; }
 
-        /* 馬情報統計 */
+        /* 馬情報統計 - モバイル最適化 */
         .horse-stats {
-            padding: 15px;
+            padding: 12px;
             display: grid;
-            gap: 12px;
+            gap: 10px;
+            grid-template-columns: 1fr;
         }
 
         .stat-group {
             background: white;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
         .stat-group-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6c757d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .stat-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 4px 0;
-            font-size: 13px;
+            padding: 3px 0;
+            font-size: 12px;
         }
 
         .stat-label {
             color: #6c757d;
+            flex: 1;
+            min-width: 0;
+            padding-right: 8px;
         }
 
         .stat-value {
             font-weight: 600;
             color: #2c3e50;
+            flex-shrink: 0;
+            text-align: right;
         }
 
         /* 特別な値のスタイル */
         .odds-value { color: #e74c3c; }
         .score-value {
             color: #3498db;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
         }
         .popularity-value { color: #27ae60; }
@@ -364,49 +363,46 @@
         .track-aptitude-3 {
             color: #e74c3c;
             font-weight: 700;
-            text-shadow: 0 0 3px rgba(231, 76, 60, 0.3);
         }
 
-        /* HTMLコンテンツ部分のスタイル */
+        /* HTMLコンテンツ部分 - モバイル最適化 */
         .html-content {
-            padding: 20px;
+            padding: 10px;
             border-top: 2px solid #e9ecef;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* 既存のHTML内のテーブルスタイル改善 */
+        /* テーブルのモバイル最適化 */
         .html-content table {
             width: 100%;
+            min-width: 500px;
             border-collapse: collapse;
-            margin: 20px 0;
-            font-size: 12px;
+            margin: 15px 0;
+            font-size: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-radius: 8px;
+            border-radius: 6px;
             overflow: hidden;
         }
 
         .html-content th {
             background: #2c3e50;
             color: white;
-            padding: 10px 8px;
+            padding: 6px 4px;
             text-align: center;
             font-weight: 600;
-            font-size: 11px;
-            letter-spacing: 0.5px;
+            font-size: 9px;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
         }
 
         .html-content td {
-            padding: 8px;
+            padding: 4px;
             text-align: center;
             border-bottom: 1px solid #e9ecef;
             background: white;
-        }
-
-        .html-content tr:nth-child(even) td {
-            background: #f8f9fa;
-        }
-
-        .html-content tr:hover td {
-            background: #e3f2fd;
+            font-size: 9px;
+            white-space: nowrap;
         }
 
         /* 枠番の色 */
@@ -419,75 +415,165 @@
         .html-content .frame-7 { background: #ff9800; color: #fff; }
         .html-content .frame-8 { background: #e91e63; color: #fff; }
 
-        /* セクションタイトル */
+        /* セクションタイトル - モバイル最適化 */
         .html-content .section-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 700;
             color: #2c3e50;
-            margin: 30px 0 15px;
-            padding-left: 15px;
-            border-left: 4px solid #3498db;
+            margin: 20px 0 10px;
+            padding-left: 10px;
+            border-left: 3px solid #3498db;
         }
 
-        /* バイアス情報等のボックス */
+        /* バイアス情報等のボックス - モバイル最適化 */
         .html-content .lower-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
         }
 
         .html-content .bias-info,
         .html-content .score-info,
         .html-content .ranking {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
+            padding: 15px;
+            border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
             border: 1px solid #e9ecef;
         }
 
-        /* レスポンシブ対応 */
-        @media (max-width: 768px) {
+        /* スクロール可能エリアの表示 */
+        .scroll-hint {
+            display: none;
+            text-align: center;
+            font-size: 10px;
+            color: #6c757d;
+            padding: 5px;
+            background: rgba(255,255,255,0.9);
+            position: sticky;
+            left: 0;
+            margin-top: -5px;
+        }
+
+        .html-content::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .html-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .html-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 2px;
+        }
+
+        /* タブレット対応 */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .container {
+                max-width: 768px;
+                margin: 0 auto;
+                padding: 0 15px;
+            }
+
             .header h1 {
-                font-size: 22px;
-            }
-
-            .race-group-items {
-                gap: 5px;
-            }
-
-            .race-tab-button {
-                padding: 6px 12px;
-                font-size: 12px;
+                font-size: 24px;
             }
 
             .summary-grid {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 15px;
             }
 
             .horse-stats {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* デスクトップ対応 */
+        @media (min-width: 1025px) {
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 0 20px;
+            }
+
+            .header {
+                padding: 30px 0;
+            }
+
+            .header h1 {
+                font-size: 28px;
+                margin-bottom: 5px;
+            }
+
+            .header p {
+                font-size: 14px;
+            }
+
+            .race-selector {
+                padding: 20px;
+                margin: 20px 0;
+            }
+
+            .race-selector-title {
+                font-size: 16px;
+                margin-bottom: 15px;
+            }
+
+            .race-groups {
+                display: grid;
+                gap: 15px;
+            }
+
+            .race-tab-button {
+                padding: 8px 16px;
+                font-size: 13px;
+                border-radius: 20px;
+            }
+
+            .race-tab-button:hover {
+                background: #3498db;
+                color: white;
+                border-color: #3498db;
+                transform: scale(1.05);
+            }
+
+            .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+                gap: 20px;
+            }
+
+            .summary-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+                border-color: #3498db;
+            }
+
+            .horse-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .html-content {
-                padding: 10px;
-                overflow-x: auto;
+                padding: 20px;
             }
 
             .html-content table {
-                font-size: 10px;
-                min-width: 600px;
+                font-size: 12px;
             }
 
             .html-content th,
             .html-content td {
-                padding: 5px;
+                padding: 8px;
             }
 
             .html-content .lower-container {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
             }
         }
 
@@ -507,23 +593,27 @@
             animation: fadeIn 0.3s ease;
         }
 
-        /* スクロールバーのカスタマイズ */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        /* モバイルでのタッチ操作改善 */
+        @media (hover: none) and (pointer: coarse) {
+            .race-tab-button,
+            .sub-tab-button {
+                -webkit-tap-highlight-color: rgba(52, 152, 219, 0.2);
+            }
         }
 
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
+        /* 横スクロールのヒント表示 */
+        @media (max-width: 767px) {
+            .html-content {
+                position: relative;
+            }
 
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
+            .html-content table {
+                display: block;
+            }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            .scroll-hint {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -729,7 +819,10 @@
                 }
 
                 // コンテンツを表示
-                contentArea.innerHTML = subTabsHtml + summaryHtml + '<div class="html-content">' + htmlContent + '</div>';
+                contentArea.innerHTML = subTabsHtml + summaryHtml +
+                    '<div class="html-content">' +
+                    '<div class="scroll-hint">← 横スクロールで全体を表示 →</div>' +
+                    htmlContent + '</div>';
 
             } catch (error) {
                 console.error('レース情報の表示エラー:', error);
@@ -890,6 +983,15 @@
 
         // ページ読み込み時に初期化
         window.addEventListener('DOMContentLoaded', init);
+
+        // ビューポートの高さを設定（モバイルブラウザ対応）
+        function setViewportHeight() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+
+        setViewportHeight();
+        window.addEventListener('resize', setViewportHeight);
     </script>
 </body>
 </html>
