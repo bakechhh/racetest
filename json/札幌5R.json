@@ -3,7 +3,7 @@
     {
       "horse_number": 8,
       "name": "イージーライダー",
-      "popularity": 4,
+      "popularity": 5,
       "odds": 7.8,
       "mark": "○",
       "score": 80.75,
@@ -29,9 +29,9 @@
       "-3F差平均": 0,
       "想定脚質": "不明",
       "track_bias_aptitude_score": null,
-      "investment_value_score": 71.2,
+      "investment_value_score": 63.5,
       "total_investment_index": null,
-      "investment_rating": 0.9491732931137085,
+      "investment_rating": 1.1229047608375549,
       "stability_score": 90,
       "investment_mark": "◎"
     },
@@ -248,8 +248,8 @@
     {
       "horse_number": 6,
       "name": "ローレルアイビー",
-      "popularity": 5,
-      "odds": 8.0,
+      "popularity": 4,
+      "odds": 7.8,
       "mark": "△",
       "score": 59.7,
       "track_aptitude": 0,
@@ -274,9 +274,9 @@
       "-3F差平均": 0,
       "想定脚質": "不明",
       "track_bias_aptitude_score": null,
-      "investment_value_score": 7.3,
+      "investment_value_score": 13.9,
       "total_investment_index": null,
-      "investment_rating": -0.3012372693419456,
+      "investment_rating": -0.3134680944681168,
       "stability_score": 90,
       "investment_mark": "××"
     }
