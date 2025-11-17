@@ -7,34 +7,65 @@ GitHub→NetlifyでSupabaseからデータを読み取る競馬分析システ�
 ### 1. Supabaseプロジェクトの作成
 
 1. [Supabase](https://supabase.com/)でプロジェクトを作成
-2. 以下のテーブルを作成:
+2. SQL Editorでテーブルを作成
 
-#### `race_data` テーブル
+#### 方法A: SQLファイルを使用（推奨）
+
+Supabase Dashboard > SQL Editor で以下のいずれかを実行:
+
+**最小限のセットアップ（すぐに使い始める）:**
+```bash
+# supabase-setup-minimal.sql の内容をコピー&ペーストして実行
+```
+
+**完全なセットアップ（本番運用向け）:**
+```bash
+# supabase-schema.sql の内容をコピー&ペーストして実行
+# 自動更新タイムスタンプ、追加インデックス、RLS設定を含む
+```
+
+#### 方法B: 手動でSQLを実行
 
 ```sql
+-- race_data テーブル
 CREATE TABLE race_data (
   race_id TEXT PRIMARY KEY,
   data JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- インデックスの作成
 CREATE INDEX idx_race_data_race_id ON race_data(race_id);
-```
 
-#### `odds_data` テーブル
-
-```sql
+-- odds_data テーブル
 CREATE TABLE odds_data (
   race_id TEXT PRIMARY KEY,
   data JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- インデックスの作成
 CREATE INDEX idx_odds_data_race_id ON odds_data(race_id);
+
+-- RLS設定（セキュリティ）
+ALTER TABLE race_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE odds_data ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable read access for all users"
+ON race_data FOR SELECT USING (true);
+
+CREATE POLICY "Enable read access for all users"
+ON odds_data FOR SELECT USING (true);
+
+CREATE POLICY "Enable insert for authenticated users only"
+ON race_data FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Enable update for authenticated users only"
+ON race_data FOR UPDATE USING (true);
+
+CREATE POLICY "Enable insert for authenticated users only"
+ON odds_data FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Enable update for authenticated users only"
+ON odds_data FOR UPDATE USING (true);
 ```
 
 ### 2. データの投入
@@ -206,3 +237,28 @@ const oddsData = await loadOddsData('東京1R');
 ```javascript
 const raceData = await loadSingleRaceData('東京1R');
 ```
+
+## ファイル説明
+
+### SQLファイル
+
+- **supabase-setup-minimal.sql**: 最小限のセットアップ（すぐに使い始める場合）
+- **supabase-schema.sql**: 完全なスキーマ（本番運用向け、トリガーや追加インデックスを含む）
+
+### Pythonスクリプト
+
+- **update_supabase.py**: JSONファイルをSupabaseにアップロードするメインスクリプト
+- **scheduler.py**: 5分ごとに自動実行するスケジューラー
+- **requirements.txt**: Python依存パッケージ
+
+### JavaScriptファイル
+
+- **data-loader.js**: Supabaseからデータを読み込むクライアントライブラリ
+- **supabase-client.js**: Supabaseクライアントの初期化
+- **upload-to-supabase.js**: Node.jsでのデータアップロードスクリプト
+
+### 設定ファイル
+
+- **.env.example**: 環境変数のテンプレート
+- **netlify.toml**: Netlify設定
+- **package.json**: Node.js依存関係
