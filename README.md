@@ -39,36 +39,59 @@ CREATE INDEX idx_odds_data_race_id ON odds_data(race_id);
 
 ### 2. データの投入
 
-既存のJSONファイルをSupabaseに投入します:
+既存のJSONファイルをSupabaseに投入します。以下の2つの方法があります:
 
-```javascript
-// race_dataの投入例
-const raceDataFiles = ['東京1R', '東京2R', ...];
+#### 方法A: Python スクリプト（推奨）
 
-for (const raceId of raceDataFiles) {
-  const raceData = await fetch(`./racedata/${raceId}.json`).then(r => r.json());
+**初回セットアップ:**
 
-  await supabase
-    .from('race_data')
-    .insert({
-      race_id: raceId,
-      data: raceData
-    });
-}
+```bash
+# Python仮想環境を作成（推奨）
+python -m venv venv
 
-// odds_dataの投入例
-const oddsDataFiles = ['東京1R', '東京2R', ...];
+# 仮想環境を有効化
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
 
-for (const raceId of oddsDataFiles) {
-  const oddsData = await fetch(`./odds/${raceId}.json`).then(r => r.json());
+# 依存パッケージをインストール
+pip install -r requirements.txt
 
-  await supabase
-    .from('odds_data')
-    .insert({
-      race_id: raceId,
-      data: oddsData
-    });
-}
+# .envファイルを作成
+cp .env.example .env
+# .envファイルを編集してSupabase認証情報を設定
+```
+
+**1回だけ実行する場合:**
+
+```bash
+python update_supabase.py
+```
+
+**5分ごとに自動更新する場合（常時起動）:**
+
+```bash
+python scheduler.py
+```
+
+スケジューラーは以下の動作をします:
+- 起動時に即座に1回実行
+- その後5分ごとに自動実行
+- `Ctrl+C`で停止
+
+#### 方法B: Node.js スクリプト
+
+```bash
+# 依存パッケージをインストール
+npm install
+
+# .envファイルを作成
+cp .env.example .env
+# .envファイルを編集してSupabase認証情報を設定
+
+# データをアップロード
+npm run upload
 ```
 
 ### 3. 環境変数の設定
@@ -108,7 +131,38 @@ git push origin main
 
 Netlifyが自動的にデプロイします。
 
-## ローカル開発
+## データ更新ワークフロー
+
+### ローカルPCでのデータ管理
+
+1. **JSONファイルの生成**（既存のワークフロー）
+   - ローカルPCで`racedata/`と`odds/`フォルダにJSONファイルを生成
+   - ファイル名: `東京1R.json`, `京都2R.json` など
+   - JSON形式: 既存のフォーマットのまま（変更不要）
+
+2. **Supabaseへの自動アップロード**
+   ```bash
+   # スケジューラーを起動（常時起動）
+   python scheduler.py
+   ```
+
+   スケジューラーが以下を自動実行:
+   - 5分ごとに`racedata/`と`odds/`フォルダをスキャン
+   - 新規・更新されたJSONファイルを自動検出
+   - Supabaseに自動アップロード（upsert: 存在すれば更新、なければ挿入）
+   - ファイル形式は一切変更なし、そのままJSONBとして保存
+
+3. **Netlifyでの表示**
+   - NetlifyデプロイされたWebアプリがSupabaseから最新データを自動取得
+   - リアルタイムでレース情報が更新
+
+### 手動での1回だけのアップロード
+
+```bash
+python update_supabase.py
+```
+
+## ローカル開発（フロントエンド）
 
 ```bash
 npm install
