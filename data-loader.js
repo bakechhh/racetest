@@ -126,35 +126,28 @@ async function loadSingleRaceData(raceId) {
  * @param {string} raceId - レースID（例: 東京1R, 京都10R）
  * @returns {Promise<Array>} オッズデータの配列（全券種が含まれる）
  */
-async function loadOddsData(raceId) {
-    try {
-        // 従来どおり GitHub Pages から取得
-        const timestamp = new Date().getTime();
-        const oddsUrl = `${GITHUB_PAGES_BASE}/odds/${encodeURIComponent(
-            raceId
-        )}.json?_=${timestamp}`;
+ async function loadOddsData(raceId) {
+     const supabase = getSupabaseClient();
 
-        const response = await fetch(oddsUrl, {
-            cache: 'no-store',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                Pragma: 'no-cache',
-                Expires: '0',
-            },
-        });
+     const { data, error } = await supabase
+         .from("race_odds_json")
+         .select("data")
+         .eq("race_id", raceId)
+         .maybeSingle();
 
-        if (!response.ok) {
-            console.warn(`オッズデータの読み込みに失敗: ${raceId} (${response.status})`);
-            return [];
-        }
+     if (error) {
+         console.warn("Supabase オッズ取得エラー:", raceId, error);
+         return [];
+     }
+     if (!data || !data.data) {
+         console.warn("Supabase にオッズデータがありません:", raceId);
+         return [];
+     }
 
-        const oddsData = await response.json();
-        return oddsData;
-    } catch (error) {
-        console.error('オッズデータの読み込みエラー:', error);
-        throw error;
-    }
-}
+     // data.data が odds/京都1R.json の中身そのまま
+     return data.data;
+ }
+
 
 // 関数をグローバルに公開（app.js から今まで通り呼べるようにする）
 window.loadAllRaceData = loadAllRaceData;
