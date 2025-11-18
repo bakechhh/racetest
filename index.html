@@ -6891,44 +6891,84 @@ window.addToMemoFromFormation = function() {
       };
 
       // ============================================================
-      // loadAndRenderOdds をフックして、オッズタブの下に自動で設置
+      // loadAndRenderOdds をフックして、オッズタブの下に自動で設置（遅れて定義されても対応）
       // ============================================================
-      function setupHook() {
-        var original = window.loadAndRenderOdds;
-        window.loadAndRenderOdds = function () {
-          var maybePromise;
-          if (typeof original === "function") {
-            maybePromise = original();
-          }
-          var after = function () {
-            var oddsData = window.currentOddsData;
-            var container = document.getElementById("oddsContent");
-            if (!container || !Array.isArray(oddsData)) return;
 
-            var root = document.getElementById("umaaiStakingTool");
-            if (!root) {
-              root = document.createElement("div");
-              root.id = "umaaiStakingTool";
-              container.appendChild(root);
+      function mountFromCurrentOdds() {
+        var oddsData = window.currentOddsData;
+        var container = document.getElementById("oddsContent");
+        if (!container || !Array.isArray(oddsData)) return;
+
+        var root = document.getElementById("umaaiStakingTool");
+        if (!root) {
+          root = document.createElement("div");
+          root.id = "umaaiStakingTool";
+          container.appendChild(root);
+        }
+        window.UmaAiStakingTool.mountOrUpdate(root, oddsData);
+      }
+
+      function wrapLoadAndRenderOdds() {
+        var original = window.loadAndRenderOdds;
+        if (typeof original !== "function") {
+          return;
+        }
+
+        // 二重ラップ防止
+        if (original.__umaAiWrapped) {
+          return;
+        }
+
+        function wrappedLoadAndRenderOdds() {
+          var maybePromise = original.apply(this, arguments);
+
+          var after = function () {
+            try {
+              mountFromCurrentOdds();
+            } catch (e) {
+              console.warn("UmaAiStakingTool mount error:", e);
             }
-            window.UmaAiStakingTool.mountOrUpdate(root, oddsData);
           };
 
           if (maybePromise && typeof maybePromise.then === "function") {
-            return maybePromise.then(after);
+            return maybePromise.then(function (res) {
+              after();
+              return res;
+            });
           } else {
             after();
             return maybePromise;
           }
-        };
+        }
+
+        wrappedLoadAndRenderOdds.__umaAiWrapped = true;
+        window.loadAndRenderOdds = wrappedLoadAndRenderOdds;
+      }
+
+      function waitForLoadAndRenderOdds(retry) {
+        retry = retry || 0;
+        if (typeof window.loadAndRenderOdds === "function") {
+          wrapLoadAndRenderOdds();
+          return;
+        }
+        if (retry > 50) { // 約5秒で諦める
+          console.warn("loadAndRenderOdds が見つからず、UmaAiStakingTool をフックできませんでした。");
+          return;
+        }
+        setTimeout(function () {
+          waitForLoadAndRenderOdds(retry + 1);
+        }, 100);
       }
 
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", setupHook);
+        document.addEventListener("DOMContentLoaded", function () {
+          waitForLoadAndRenderOdds(0);
+        });
       } else {
-        setupHook();
+        waitForLoadAndRenderOdds(0);
       }
-    })();
+      })();
+
     </script>
     <!-- ▲▲▲ UmaAi 資金配分・複合回収率ツール ここまで ▲▲▲ -->
 
