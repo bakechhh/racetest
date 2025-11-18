@@ -2321,7 +2321,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
 
                 // お気に入りフィルター
                 if (favoriteFilter) {
-                    const raceId = `${race.date}_${race.place}_${race.round}`;
+                    const raceId = `${race.place}${race.round}R`;
                     if (!isFavoriteRace(raceId)) {
                         return false;
                     }
