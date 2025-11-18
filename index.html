@@ -5463,6 +5463,1474 @@ window.addToMemoFromFormation = function() {
             }, 5000);
         }
     </script>
+    <!-- ▼▼▼ UmaAi 資金配分・複合回収率ツール ここから ▼▼▼ -->
+    <style id="umaaiStakingToolStyles">
+      #umaaiStakingTool {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 12px;
+        background: #020617;
+        color: #e5e7eb;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        border: 1px solid #111827;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      }
+      #umaaiStakingTool h2 {
+        font-size: 1rem;
+        margin: 0 0 6px 0;
+      }
+      #umaaiStakingTool h3 {
+        font-size: 0.9rem;
+        margin: 10px 0 4px 0;
+      }
+      #umaaiStakingTool .st-card {
+        background: #020617;
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border: 1px solid #111827;
+      }
+      #umaaiStakingTool label {
+        font-size: 0.8rem;
+        display: block;
+        margin-bottom: 3px;
+      }
+      #umaaiStakingTool input[type="number"],
+      #umaaiStakingTool input[type="text"] {
+        width: 100%;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #1f2937;
+        background: #020617;
+        color: #e5e7eb;
+        box-sizing: border-box;
+        font-size: 0.85rem;
+      }
+      #umaaiStakingTool input::placeholder {
+        color: #6b7280;
+      }
+      #umaaiStakingTool button {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: none;
+        background: #38bdf8;
+        color: #020617;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #umaaiStakingTool button.st-secondary {
+        background: #0f172a;
+        color: #e5e7eb;
+        border: 1px solid #1f2937;
+      }
+      #umaaiStakingTool button.st-danger {
+        background: #ef4444;
+        color: #f9fafb;
+      }
+      #umaaiStakingTool button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #umaaiStakingTool .st-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+      }
+      #umaaiStakingTool .st-row > div {
+        flex: 1;
+        min-width: 120px;
+      }
+      #umaaiStakingTool .st-row > div.st-small {
+        flex: 0.7;
+      }
+      #umaaiStakingTool .st-row > div.st-xsmall {
+        flex: 0.5;
+      }
+      #umaaiStakingTool .st-hint {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      #umaaiStakingTool .st-error {
+        font-size: 0.8rem;
+        color: #fca5a5;
+        margin-top: 4px;
+      }
+      #umaaiStakingTool .st-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        background: #0369a1;
+        color: #e5e7eb;
+        margin-left: 4px;
+      }
+      #umaaiStakingTool .st-switch-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 0.8rem;
+      }
+      #umaaiStakingTool .st-slider-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 0.8rem;
+      }
+      #umaaiStakingTool .st-slider-row input[type="range"] {
+        flex: 1;
+      }
+      #umaaiStakingTool .st-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 6px;
+        flex-wrap: wrap;
+      }
+      #umaaiStakingTool .st-tab-button {
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid #1f2937;
+        background: #020617;
+        color: #e5e7eb;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      #umaaiStakingTool .st-tab-button.st-active {
+        background: #38bdf8;
+        color: #020617;
+        border-color: #0ea5e9;
+      }
+      #umaaiStakingTool .st-tab-content {
+        display: none;
+      }
+      #umaaiStakingTool .st-tab-content.st-active {
+        display: block;
+      }
+      #umaaiStakingTool table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+        margin-top: 4px;
+      }
+      #umaaiStakingTool th,
+      #umaaiStakingTool td {
+        border-bottom: 1px solid #111827;
+        padding: 4px 2px;
+        text-align: right;
+        white-space: nowrap;
+      }
+      #umaaiStakingTool th:first-child,
+      #umaaiStakingTool td:first-child {
+        text-align: left;
+      }
+      #umaaiStakingTool .st-btn-sm {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+        border-radius: 999px;
+      }
+      #umaaiStakingTool .st-role-main {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #f97316;
+        color: #111827;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-right: 4px;
+      }
+      #umaaiStakingTool .st-role-cover {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #374151;
+        color: #e5e7eb;
+        font-size: 0.7rem;
+        margin-right: 4px;
+      }
+      #umaaiStakingTool .st-flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      #umaaiStakingTool .st-summary {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      #umaaiStakingTool .st-scenario-header {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 8px;
+        margin-bottom: 2px;
+      }
+      #umaaiStakingTool .st-scenario-block {
+        margin-top: 4px;
+        border-top: 1px solid #111827;
+        padding-top: 4px;
+      }
+      #umaaiStakingTool .st-scenario-brief {
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+      }
+      #umaaiStakingTool .st-scenario-detail {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-bottom: 2px;
+      }
+      #umaaiStakingTool .st-good {
+        color: #4ade80;
+      }
+      #umaaiStakingTool .st-warning {
+        color: #facc15;
+      }
+      #umaaiStakingTool .st-badge-small {
+        display: inline-block;
+        padding: 1px 4px;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        background: #1f2937;
+        color: #9ca3af;
+        margin-left: 4px;
+      }
+    </style>
+
+    <script>
+    (function () {
+      // ============================================================
+      // 内部状態
+      // ============================================================
+      let rootEl = null;
+
+      /**
+       * @typedef {Object} OddsCandidate
+       * @property {string} id
+       * @property {string} betType
+       * @property {string} label
+       * @property {number[]} horses
+       * @property {number} odds
+       */
+
+      /**
+       * @typedef {Object} SelectedBet
+       * @property {string} key
+       * @property {string} betType
+       * @property {string} label
+       * @property {number[]} horses
+       * @property {number} odds
+       * @property {"main"|"cover"} role
+       * @property {number} stake
+       * @property {number} payout
+       * @property {number} roi
+       * @property {number} scenarioCount
+       */
+
+      /**
+       * @typedef {Object} AutoScenario
+       * @property {string} id
+       * @property {string} name
+       * @property {string[]} betKeys
+       */
+
+      /** @type {OddsCandidate[]} */
+      let oddsCandidates = [];
+
+      /** @type {Map<string, SelectedBet>} */
+      const selectedBets = new Map();
+
+      /** @type {AutoScenario[]} */
+      let autoScenarios = [];
+
+      /** @type { { totalStake:number; results:SelectedBet[]; scenarios:AutoScenario[]; scenariosForBetKey:Record<string,number[]> } | null } */
+      let lastAllocation = null;
+      let lastBudget = 0;
+
+      // ============================================================
+      // ユーティリティ
+      // ============================================================
+      function q(selector) {
+        return rootEl ? rootEl.querySelector(selector) : null;
+      }
+
+      function yen(n) {
+        return Math.round(n).toLocaleString("ja-JP") + "円";
+      }
+
+      function percent(n) {
+        return n.toFixed(1) + "%";
+      }
+
+      function parseHorseLabel(label) {
+        return label
+          .split(/[-\s,]+/)
+          .map(function (s) { return parseInt(s, 10); })
+          .filter(function (n) { return !Number.isNaN(n); });
+      }
+
+      function roleLabel(role) {
+        return role === "main" ? "本線" : "抑え";
+      }
+
+      function roleClass(role) {
+        return role === "main" ? "st-role-main" : "st-role-cover";
+      }
+
+      function uuid() {
+        return "id_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      }
+
+      function baseRoleWeight(role) {
+        return role === "main" ? 2.0 : 1.0;
+      }
+
+      // ============================================================
+      // data-loader から渡される oddsData を内部形式に変換
+      // ============================================================
+      /**
+       * oddsData: jra_scrape_odds の1レース分のJSON（all_odds_data の配列）
+       */
+      function initOddsFromLoaderData(oddsData) {
+        oddsCandidates = [];
+        if (!Array.isArray(oddsData)) {
+          return;
+        }
+
+        // 単勝・複勝（tfw）
+        var tfw = oddsData.find(function (o) { return o.odds_type === "tfw"; });
+        if (tfw && tfw.data) {
+          // 単勝
+          (tfw.data.tansho || []).forEach(function (item) {
+            var h = parseInt(item.horse_num, 10);
+            var o = parseFloat(item.odds);
+            if (!Number.isNaN(h) && !Number.isNaN(o) && o > 0) {
+              oddsCandidates.push({
+                id: uuid(),
+                betType: "単勝",
+                label: String(h),
+                horses: [h],
+                odds: o
+              });
+            }
+          });
+
+          // 複勝（レンジのminを使用）
+          (tfw.data.fukusho || []).forEach(function (item) {
+            var h = parseInt(item.horse_num, 10);
+            var o = 0;
+            if (item.odds) {
+              if (typeof item.odds === "object" && item.odds.min != null) {
+                o = parseFloat(item.odds.min);
+              } else if (typeof item.odds === "number" || typeof item.odds === "string") {
+                o = parseFloat(item.odds);
+              }
+            }
+            if (!Number.isNaN(h) && !Number.isNaN(o) && o > 0) {
+              oddsCandidates.push({
+                id: uuid(),
+                betType: "複勝",
+                label: String(h),
+                horses: [h],
+                odds: o
+              });
+            }
+          });
+        }
+
+        function pushCombinations(typeLabel, oddsTypeCode, options) {
+          options = options || {};
+          var item = oddsData.find(function (o) { return o.odds_type === oddsTypeCode; });
+          if (!item || !item.data || !Array.isArray(item.data.combinations)) return;
+
+          item.data.combinations.forEach(function (c) {
+            var combo = String(c.combination || "");
+            if (!combo) return;
+            var o = 0;
+            if (c.odds != null) {
+              if (typeof c.odds === "object" && c.odds.min != null) {
+                // wide はレンジなので min を採用
+                o = parseFloat(c.odds.min);
+              } else if (typeof c.odds === "number" || typeof c.odds === "string") {
+                o = parseFloat(c.odds);
+              }
+            }
+            if (!o || Number.isNaN(o) || o <= 0) return;
+
+            var horses = combo.split("-").map(function (h) { return parseInt(h, 10); })
+              .filter(function (n) { return !Number.isNaN(n); });
+            if (horses.length === 0) return;
+
+            oddsCandidates.push({
+              id: uuid(),
+              betType: typeLabel,
+              label: combo,
+              horses: horses,
+              odds: o
+            });
+          });
+        }
+
+        // 枠連〜三連単
+        pushCombinations("枠連", "wakuren");
+        pushCombinations("馬連", "umaren");
+        pushCombinations("ワイド", "wide");
+        pushCombinations("馬単", "馬単");  // 後で umatan と揃える
+        // 実際の odds_type は "umatan" なので ↓ で上書き
+        oddsCandidates = oddsCandidates.filter(function () { return true; }); // 何もしないダミー。読みやすさ維持用。
+
+        // 正しく指定
+        pushCombinations("馬単", "umatan");
+        pushCombinations("三連複", "sanrenpuku");
+        pushCombinations("三連単", "sanrentan");
+      }
+
+      // ============================================================
+      // オッズタブ（資金配分ツール内）の描画
+      // ============================================================
+      function renderOddsTabs() {
+        var tabsContainer = q("#st_oddsTabs");
+        var contentsContainer = q("#st_oddsTabContents");
+        if (!tabsContainer || !contentsContainer) return;
+
+        tabsContainer.innerHTML = "";
+        contentsContainer.innerHTML = "";
+
+        var byType = {};
+        oddsCandidates.forEach(function (o) {
+          if (!byType[o.betType]) byType[o.betType] = [];
+          byType[o.betType].push(o);
+        });
+
+        var betTypes = Object.keys(byType);
+        if (betTypes.length === 0) {
+          contentsContainer.innerHTML = "<div class='st-hint'>このレースにはオッズデータがありません。</div>";
+          return;
+        }
+
+        betTypes.forEach(function (betType, index) {
+          // タブボタン
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "st-tab-button" + (index === 0 ? " st-active" : "");
+          btn.textContent = betType;
+          btn.dataset.tab = betType;
+          btn.addEventListener("click", function () {
+            var allButtons = rootEl.querySelectorAll(".st-tab-button");
+            allButtons.forEach(function (b) {
+              b.classList.toggle("st-active", b.dataset.tab === betType);
+            });
+            var allContents = rootEl.querySelectorAll(".st-tab-content");
+            allContents.forEach(function (c) {
+              c.classList.toggle("st-active", c.dataset.tab === betType);
+            });
+          });
+          tabsContainer.appendChild(btn);
+
+          // タブコンテンツ
+          var div = document.createElement("div");
+          div.className = "st-tab-content" + (index === 0 ? " st-active" : "");
+          div.dataset.tab = betType;
+
+          var table = document.createElement("table");
+          var thead = document.createElement("thead");
+          thead.innerHTML = "<tr>" +
+            "<th>買い目</th>" +
+            "<th>オッズ</th>" +
+            "<th>本線</th>" +
+            "<th>抑え</th>" +
+            "</tr>";
+          table.appendChild(thead);
+
+          var tbody = document.createElement("tbody");
+          byType[betType].forEach(function (o) {
+            var tr = document.createElement("tr");
+
+            var labelCell = document.createElement("td");
+            labelCell.textContent = o.label;
+
+            var oddsCell = document.createElement("td");
+            oddsCell.textContent = o.odds.toFixed(1);
+
+            var mainCell = document.createElement("td");
+            var mainBtn = document.createElement("button");
+            mainBtn.type = "button";
+            mainBtn.className = "st-btn-sm";
+            mainBtn.textContent = "本線に追加";
+            mainBtn.addEventListener("click", function () {
+              addSelectedBetFromOdds(o, "main");
+            });
+            mainCell.appendChild(mainBtn);
+
+            var coverCell = document.createElement("td");
+            var coverBtn = document.createElement("button");
+            coverBtn.type = "button";
+            coverBtn.className = "st-btn-sm st-secondary";
+            coverBtn.textContent = "抑えに追加";
+            coverBtn.addEventListener("click", function () {
+              addSelectedBetFromOdds(o, "cover");
+            });
+            coverCell.appendChild(coverBtn);
+
+            tr.appendChild(labelCell);
+            tr.appendChild(oddsCell);
+            tr.appendChild(mainCell);
+            tr.appendChild(coverCell);
+
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(tbody);
+          div.appendChild(table);
+          contentsContainer.appendChild(div);
+        });
+      }
+
+      function addSelectedBetFromOdds(oddsCandidate, role) {
+        var key = oddsCandidate.betType + "|" + oddsCandidate.label;
+        var existing = selectedBets.get(key);
+        if (existing) {
+          var newRole = role === "main" ? "main" : existing.role;
+          selectedBets.set(key, Object.assign({}, existing, {
+            role: newRole,
+            odds: oddsCandidate.odds
+          }));
+        } else {
+          /** @type {SelectedBet} */
+          var bet = {
+            key: key,
+            betType: oddsCandidate.betType,
+            label: oddsCandidate.label,
+            horses: oddsCandidate.horses.slice(),
+            odds: oddsCandidate.odds,
+            role: role === "main" ? "main" : "cover",
+            stake: 0,
+            payout: 0,
+            roi: 0,
+            scenarioCount: 0
+          };
+          selectedBets.set(key, bet);
+        }
+        renderSelectedBets();
+      }
+
+      // ============================================================
+      // 選択中の買い目一覧
+      // ============================================================
+      function renderSelectedBets() {
+        var container = q("#st_selectedBetsContainer");
+        var countSpan = q("#st_selectedCount");
+        if (!container || !countSpan) return;
+
+        container.innerHTML = "";
+        countSpan.textContent = selectedBets.size + "件";
+
+        if (selectedBets.size === 0) {
+          container.innerHTML = "<div class='st-hint'>まだ買い目が選択されていません。上のオッズ表から追加してください。</div>";
+          return;
+        }
+
+        var table = document.createElement("table");
+        var thead = document.createElement("thead");
+        thead.innerHTML =
+          "<tr>" +
+          "<th>券種</th>" +
+          "<th>買い目</th>" +
+          "<th>オッズ</th>" +
+          "<th>本線/抑え</th>" +
+          "<th>複合数</th>" +
+          "<th>資金</th>" +
+          "<th>単独払戻</th>" +
+          "<th>単独回収率</th>" +
+          "<th>削除</th>" +
+          "</tr>";
+        table.appendChild(thead);
+
+        var tbody = document.createElement("tbody");
+        Array.from(selectedBets.values()).forEach(function (bet) {
+          var tr = document.createElement("tr");
+
+          var typeCell = document.createElement("td");
+          typeCell.textContent = bet.betType;
+
+          var labelCell = document.createElement("td");
+          labelCell.textContent = bet.label;
+
+          var oddsCell = document.createElement("td");
+          var oddsInput = document.createElement("input");
+          oddsInput.type = "number";
+          oddsInput.step = "0.1";
+          oddsInput.min = "1.0";
+          oddsInput.value = bet.odds.toString();
+          oddsInput.style.width = "4.5em";
+          oddsInput.addEventListener("change", function () {
+            var v = parseFloat(oddsInput.value);
+            if (!Number.isNaN(v) && v > 1.0) {
+              bet.odds = v;
+            } else {
+              oddsInput.value = bet.odds.toString();
+            }
+          });
+          oddsCell.appendChild(oddsInput);
+
+          var roleCell = document.createElement("td");
+          var roleTag = document.createElement("span");
+          roleTag.className = roleClass(bet.role);
+          roleTag.textContent = roleLabel(bet.role);
+
+          var roleSelect = document.createElement("select");
+          roleSelect.style.background = "#020617";
+          roleSelect.style.color = "#e5e7eb";
+          roleSelect.style.borderRadius = "999px";
+          roleSelect.style.padding = "2px 6px";
+          roleSelect.style.fontSize = "0.7rem";
+          roleSelect.style.marginTop = "2px";
+
+          var optMain = document.createElement("option");
+          optMain.value = "main";
+          optMain.textContent = "本線";
+          var optCover = document.createElement("option");
+          optCover.value = "cover";
+          optCover.textContent = "抑え";
+
+          roleSelect.appendChild(optMain);
+          roleSelect.appendChild(optCover);
+          roleSelect.value = bet.role;
+
+          roleSelect.addEventListener("change", function () {
+            bet.role = roleSelect.value === "main" ? "main" : "cover";
+            roleTag.className = roleClass(bet.role);
+            roleTag.textContent = roleLabel(bet.role);
+          });
+
+          roleCell.appendChild(roleTag);
+          roleCell.appendChild(document.createElement("br"));
+          roleCell.appendChild(roleSelect);
+
+          var scCell = document.createElement("td");
+          var scCount = bet.scenarioCount || 0;
+          if (scCount > 0) {
+            var span = document.createElement("span");
+            span.className = "st-good";
+            span.textContent = scCount + "件";
+            scCell.appendChild(span);
+          } else {
+            var span2 = document.createElement("span");
+            span2.className = "st-hint";
+            span2.textContent = "0";
+            scCell.appendChild(span2);
+          }
+
+          var stakeCell = document.createElement("td");
+          stakeCell.textContent = bet.stake ? yen(bet.stake) : "-";
+
+          var payoutCell = document.createElement("td");
+          payoutCell.textContent = bet.payout ? yen(bet.payout) : "-";
+
+          var roiCell = document.createElement("td");
+          roiCell.textContent = bet.roi ? percent(bet.roi) : "-";
+
+          var delCell = document.createElement("td");
+          var delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "st-btn-sm st-danger";
+          delBtn.textContent = "削除";
+          delBtn.addEventListener("click", function () {
+            selectedBets.delete(bet.key);
+            renderSelectedBets();
+          });
+          delCell.appendChild(delBtn);
+
+          tr.appendChild(typeCell);
+          tr.appendChild(labelCell);
+          tr.appendChild(oddsCell);
+          tr.appendChild(roleCell);
+          tr.appendChild(scCell);
+          tr.appendChild(stakeCell);
+          tr.appendChild(payoutCell);
+          tr.appendChild(roiCell);
+          tr.appendChild(delCell);
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+      }
+
+      // ============================================================
+      // 自動複合シナリオ生成
+      // ============================================================
+      /**
+       * @param {SelectedBet[]} bets
+       * @returns {{scenarios:AutoScenario[], scenariosForBetKey:Record<string,number[]>}}
+       */
+      function buildAutoScenarios(bets) {
+        /** @type {AutoScenario[]} */
+        var scenarios = [];
+        /** @type {Record<string, number[]>} */
+        var scenariosForBetKey = {};
+
+        function registerScenario(name, betList) {
+          if (!betList || betList.length < 2) return;
+          var uniqueKeys = Array.from(new Set(betList.map(function (b) { return b.key; })));
+          if (uniqueKeys.length < 2) return;
+
+          var id = uuid();
+          var scenario = { id: id, name: name, betKeys: uniqueKeys };
+          var index = scenarios.length;
+          scenarios.push(scenario);
+
+          uniqueKeys.forEach(function (key) {
+            if (!scenariosForBetKey[key]) scenariosForBetKey[key] = [];
+            scenariosForBetKey[key].push(index);
+          });
+        }
+
+        /** @type {Record<string, SelectedBet[]>} */
+        var byType = {};
+        bets.forEach(function (b) {
+          if (!byType[b.betType]) byType[b.betType] = [];
+          byType[b.betType].push(b);
+        });
+
+        var tansho = byType["単勝"] || [];
+        var fukusho = byType["複勝"] || [];
+        var umaren = byType["馬連"] || [];
+        var wide = byType["ワイド"] || [];
+        var umatan = byType["馬単"] || [];
+        var sanrenpuku = byType["三連複"] || [];
+        var sanrentan = byType["三連単"] || [];
+
+        // 単勝 & 複勝（同じ馬番）
+        var tanshoByHorse = {};
+        tansho.forEach(function (b) {
+          var h = b.horses[0];
+          if (typeof h === "number") tanshoByHorse[h] = b;
+        });
+        var fukushoByHorse = {};
+        fukusho.forEach(function (b) {
+          var h = b.horses[0];
+          if (typeof h === "number") fukushoByHorse[h] = b;
+        });
+        Object.keys(tanshoByHorse).forEach(function (hStr) {
+          var h = parseInt(hStr, 10);
+          var t = tanshoByHorse[h];
+          var f = fukushoByHorse[h];
+          if (t && f) {
+            registerScenario("単勝+複勝 " + h + "番", [t, f]);
+          }
+        });
+
+        // 単勝 & 馬単 & 三連単（1着同じ）
+        var umatanByFirst = {};
+        umatan.forEach(function (b) {
+          var h = b.horses[0];
+          if (!umatanByFirst[h]) umatanByFirst[h] = [];
+          umatanByFirst[h].push(b);
+        });
+        var sanrentanByFirst = {};
+        sanrentan.forEach(function (b) {
+          var h = b.horses[0];
+          if (!sanrentanByFirst[h]) sanrentanByFirst[h] = [];
+          sanrentanByFirst[h].push(b);
+        });
+        Object.keys(tanshoByHorse).forEach(function (hStr) {
+          var h = parseInt(hStr, 10);
+          var t = tanshoByHorse[h];
+          var um = umatanByFirst[h] || [];
+          var sr = sanrentanByFirst[h] || [];
+          var list = [];
+          if (t) list.push(t);
+          um.forEach(function (b) { list.push(b); });
+          sr.forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("1着 " + h + "番（単勝/馬単/三連単）", list);
+          }
+        });
+
+        // 馬単 & 三連単（1〜2着同じ）
+        var umatanByFirstSecond = {};
+        umatan.forEach(function (b) {
+          if (b.horses.length >= 2) {
+            var key = b.horses[0] + "-" + b.horses[1];
+            if (!umatanByFirstSecond[key]) umatanByFirstSecond[key] = [];
+            umatanByFirstSecond[key].push(b);
+          }
+        });
+        var sanrentanByFirstSecond = {};
+        sanrentan.forEach(function (b) {
+          if (b.horses.length >= 2) {
+            var key = b.horses[0] + "-" + b.horses[1];
+            if (!sanrentanByFirstSecond[key]) sanrentanByFirstSecond[key] = [];
+            sanrentanByFirstSecond[key].push(b);
+          }
+        });
+        Object.keys(umatanByFirstSecond).forEach(function (pairKey) {
+          var list = [];
+          umatanByFirstSecond[pairKey].forEach(function (b) { list.push(b); });
+          (sanrentanByFirstSecond[pairKey] || []).forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("1-2着 " + pairKey + "（馬単/三連単）", list);
+          }
+        });
+
+        // 馬単 & 馬連（同じ2頭）
+        var umarenByPair = {};
+        umaren.forEach(function (b) {
+          if (b.horses.length >= 2) {
+            var a = b.horses[0];
+            var c = b.horses[1];
+            var key = a < c ? a + "-" + c : c + "-" + a;
+            if (!umarenByPair[key]) umarenByPair[key] = [];
+            umarenByPair[key].push(b);
+          }
+        });
+        var umatanByPair = {};
+        umatan.forEach(function (b) {
+          if (b.horses.length >= 2) {
+            var a = b.horses[0];
+            var c = b.horses[1];
+            var key = a < c ? a + "-" + c : c + "-" + a;
+            if (!umatanByPair[key]) umatanByPair[key] = [];
+            umatanByPair[key].push(b);
+          }
+        });
+        Object.keys(umarenByPair).forEach(function (pairKey) {
+          var list = [];
+          umarenByPair[pairKey].forEach(function (b) { list.push(b); });
+          (umatanByPair[pairKey] || []).forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("2頭 " + pairKey + "（馬連/馬単）", list);
+          }
+        });
+
+        // 複勝 & ワイド（同じ馬番を含む）
+        var fukushoSingleByHorse = {};
+        fukusho.forEach(function (b) {
+          var h = b.horses[0];
+          if (typeof h === "number") fukushoSingleByHorse[h] = b;
+        });
+        var wideByHorse = {};
+        wide.forEach(function (b) {
+          b.horses.forEach(function (h) {
+            if (!wideByHorse[h]) wideByHorse[h] = [];
+            wideByHorse[h].push(b);
+          });
+        });
+        Object.keys(fukushoSingleByHorse).forEach(function (hStr) {
+          var h = parseInt(hStr, 10);
+          var f = fukushoSingleByHorse[h];
+          var ws = wideByHorse[h] || [];
+          var list = [];
+          if (f) list.push(f);
+          ws.forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("複勝+ワイド " + h + "番", list);
+          }
+        });
+
+        // ワイド & 三連複（同じ2頭を含む）
+        var wideByPair = {};
+        wide.forEach(function (b) {
+          if (b.horses.length >= 2) {
+            var a = b.horses[0];
+            var c = b.horses[1];
+            var key = a < c ? a + "-" + c : c + "-" + a;
+            if (!wideByPair[key]) wideByPair[key] = [];
+            wideByPair[key].push(b);
+          }
+        });
+
+        var sanrenpukuByPair = {};
+        sanrenpuku.forEach(function (b) {
+          var hs = b.horses.slice().sort(function (x, y) { return x - y; });
+          for (var i = 0; i < hs.length; i++) {
+            for (var j = i + 1; j < hs.length; j++) {
+              var key = hs[i] + "-" + hs[j];
+              if (!sanrenpukuByPair[key]) sanrenpukuByPair[key] = [];
+              sanrenpukuByPair[key].push(b);
+            }
+          }
+        });
+
+        Object.keys(wideByPair).forEach(function (pairKey) {
+          var list = [];
+          wideByPair[pairKey].forEach(function (b) { list.push(b); });
+          (sanrenpukuByPair[pairKey] || []).forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("ワイド+三連複 " + pairKey, list);
+          }
+        });
+
+        // 馬連 & 三連複（同じ2頭を含む）
+        var umarenPairs = umarenByPair;
+        Object.keys(umarenPairs).forEach(function (pairKey) {
+          var list = [];
+          umarenPairs[pairKey].forEach(function (b) { list.push(b); });
+          (sanrenpukuByPair[pairKey] || []).forEach(function (b) { list.push(b); });
+          if (list.length >= 2) {
+            registerScenario("馬連+三連複 " + pairKey, list);
+          }
+        });
+
+        // bet ごとの scenarioCount を更新
+        bets.forEach(function (b) {
+          var arr = scenariosForBetKey[b.key] || [];
+          b.scenarioCount = arr.length;
+        });
+
+        return { scenarios: scenarios, scenariosForBetKey: scenariosForBetKey };
+      }
+
+      // ============================================================
+      // 資金配分計算
+      // ============================================================
+      function calculateAllocation(budget, useScenarios, scenarioFactor) {
+        var bets = Array.from(selectedBets.values());
+        if (bets.length === 0) {
+          throw new Error("買い目が1つも選択されていません。");
+        }
+
+        var auto = buildAutoScenarios(bets);
+        autoScenarios = auto.scenarios;
+        var scenariosForBetKey = auto.scenariosForBetKey;
+
+        var maxScenarioCount = 0;
+        bets.forEach(function (b) {
+          if ((b.scenarioCount || 0) > maxScenarioCount) {
+            maxScenarioCount = b.scenarioCount;
+          }
+        });
+
+        var weights = [];
+        bets.forEach(function (b) {
+          var base = baseRoleWeight(b.role);
+          if (!useScenarios || autoScenarios.length === 0 || maxScenarioCount === 0 || scenarioFactor <= 0) {
+            weights.push(base);
+          } else {
+            var score = (b.scenarioCount || 0) / maxScenarioCount;
+            weights.push(base * (1 + scenarioFactor * score));
+          }
+        });
+
+        var denom = 0;
+        bets.forEach(function (b, idx) {
+          if (b.odds <= 1.0) {
+            throw new Error("オッズが1.0以下の買い目があります: " + b.betType + " " + b.label);
+          }
+          denom += weights[idx] / b.odds;
+        });
+        if (denom <= 0) {
+          throw new Error("重みの合計が0以下です。オッズや本線/抑えの設定を確認してください。");
+        }
+
+        var rawStakes = bets.map(function (b, idx) {
+          return (budget * (weights[idx] / b.odds)) / denom;
+        });
+
+        var stakes = rawStakes.map(function (s) {
+          return Math.max(0, Math.round(s / 100) * 100);
+        });
+        var total = stakes.reduce(function (a, b) { return a + b; }, 0);
+
+        var diff = budget - total;
+        var step = diff > 0 ? 100 : -100;
+        var i = 0;
+        var safety = 0;
+        var n = stakes.length;
+
+        while (diff !== 0 && safety < 10000 && n > 0) {
+          if (step > 0 || (step < 0 && stakes[i] >= 200)) {
+            stakes[i] += step;
+            diff -= step;
+          }
+          i = (i + 1) % n;
+          safety++;
+        }
+        total = stakes.reduce(function (a, b) { return a + b; }, 0);
+
+        var results = bets.map(function (b, idx) {
+          var stake = stakes[idx];
+          var payout = stake * b.odds;
+          var roi = total > 0 ? (payout / total) * 100 : 0;
+          return Object.assign({}, b, {
+            stake: stake,
+            payout: payout,
+            roi: roi
+          });
+        });
+
+        return {
+          totalStake: total,
+          results: results,
+          scenarios: autoScenarios,
+          scenariosForBetKey: scenariosForBetKey
+        };
+      }
+
+      function calculateScenarioResults(budget, allocation) {
+        var bets = allocation.results;
+        var scenarios = allocation.scenarios || [];
+        if (scenarios.length === 0) return [];
+
+        var betMap = {};
+        bets.forEach(function (b) {
+          betMap[b.key] = b;
+        });
+
+        var results = [];
+        scenarios.forEach(function (sc) {
+          var hits = [];
+          var payout = 0;
+          sc.betKeys.forEach(function (key) {
+            var b = betMap[key];
+            if (b && b.stake > 0) {
+              hits.push(b);
+              payout += b.stake * b.odds;
+            }
+          });
+          var roi = budget > 0 ? (payout / budget) * 100 : 0;
+          results.push({
+            scenario: sc,
+            payout: payout,
+            roi: roi,
+            hits: hits
+          });
+        });
+
+        return results;
+      }
+
+      // ============================================================
+      // 結果描画
+      // ============================================================
+      function renderAllocationResult(budget, targetRoiValue, allocation) {
+        var container = q("#st_allocationResult");
+        if (!container) return;
+        container.innerHTML = "";
+
+        var totalStake = allocation.totalStake;
+        var bets = allocation.results;
+        if (!bets || bets.length === 0) {
+          container.innerHTML = "<div class='st-hint'>有効な買い目がありません。</div>";
+          return;
+        }
+
+        var minROI = bets.reduce(function (m, b) { return Math.min(m, b.roi); }, Number.POSITIVE_INFINITY);
+        var maxROI = bets.reduce(function (m, b) { return Math.max(m, b.roi); }, 0);
+        var avgROI = bets.reduce(function (acc, b) { return acc + b.roi; }, 0) / bets.length;
+
+        var summary = document.createElement("div");
+        summary.className = "st-summary";
+
+        var targetText = targetRoiValue
+          ? "希望回収率 " + targetRoiValue.toFixed(1) + "% に対して、"
+          : "";
+
+        summary.textContent =
+          "合計投資額: " + yen(totalStake) + " / " +
+          targetText +
+          "単独的中ベース 最低: " + percent(minROI) +
+          " / 最高: " + percent(maxROI) +
+          " / 平均: " + percent(avgROI);
+        container.appendChild(summary);
+
+        var byType = {};
+        bets.forEach(function (b) {
+          if (!byType[b.betType]) byType[b.betType] = [];
+          byType[b.betType].push(b);
+        });
+
+        Object.keys(byType).forEach(function (betType) {
+          var title = document.createElement("div");
+          title.className = "st-scenario-header";
+          title.textContent = betType;
+          container.appendChild(title);
+
+          byType[betType].sort(function (a, b) {
+            if (a.role === b.role) return b.roi - a.roi;
+            return a.role === "main" ? -1 : 1;
+          });
+
+          var table = document.createElement("table");
+          var thead = document.createElement("thead");
+          thead.innerHTML =
+            "<tr>" +
+            "<th>種別</th>" +
+            "<th>買い目</th>" +
+            "<th>オッズ</th>" +
+            "<th>資金</th>" +
+            "<th>単独払戻</th>" +
+            "<th>単独回収率</th>" +
+            "<th>複合数</th>" +
+            "</tr>";
+          table.appendChild(thead);
+
+          var tbody = document.createElement("tbody");
+          byType[betType].forEach(function (b) {
+            var tr = document.createElement("tr");
+            var tag = "<span class='" + roleClass(b.role) + "'>" + roleLabel(b.role) + "</span>";
+
+            tr.innerHTML =
+              "<td>" + tag + "</td>" +
+              "<td>" + b.label + "</td>" +
+              "<td>" + b.odds.toFixed(1) + "</td>" +
+              "<td>" + yen(b.stake) + "</td>" +
+              "<td>" + yen(b.payout) + "</td>" +
+              "<td>" + percent(b.roi) + "</td>" +
+              "<td>" + (b.scenarioCount || 0) + "</td>";
+
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(tbody);
+          container.appendChild(table);
+        });
+      }
+
+      function renderScenarioResult(budget, scenarioResults) {
+        var container = q("#st_scenarioResult");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (!scenarioResults || scenarioResults.length === 0) {
+          container.innerHTML = "<div class='st-hint'>複合パターンが見つからなかったため、複合的中時の回収率は表示していません。</div>";
+          return;
+        }
+
+        var title = document.createElement("div");
+        title.className = "st-scenario-header";
+        title.textContent = "代表的な複合パターン別 総回収率（自動判定）";
+        container.appendChild(title);
+
+        scenarioResults.forEach(function (sr) {
+          var sc = sr.scenario;
+          var block = document.createElement("div");
+          block.className = "st-scenario-block";
+
+          var brief = document.createElement("div");
+          brief.className = "st-scenario-brief";
+
+          var roiClass = sr.roi >= 200 ? "st-good" : (sr.roi >= 100 ? "" : "st-warning");
+          brief.innerHTML =
+            "<span class='" + roiClass + "'>" + sc.name + "</span>" +
+            "<span class='st-badge-small'>的中点数: " + sr.hits.length + "</span>" +
+            " / 払戻合計: " + yen(sr.payout) +
+            " / 回収率: <span class='" + roiClass + "'>" + percent(sr.roi) + "</span>";
+          block.appendChild(brief);
+
+          var detail = document.createElement("div");
+          detail.className = "st-scenario-detail";
+          if (sr.hits.length === 0) {
+            detail.textContent = "このパターンで的中する買い目はありません。";
+          } else {
+            var parts = sr.hits.map(function (b) {
+              return roleLabel(b.role) + " " + b.betType + " " + b.label +
+                "（" + yen(b.stake) + " → " + yen(b.stake * b.odds) + "）";
+            });
+            detail.textContent = "的中買い目: " + parts.join(" / ");
+          }
+          block.appendChild(detail);
+
+          container.appendChild(block);
+        });
+      }
+
+      function buildCopyText(budget, targetRoiValue, allocation, scenarioResults) {
+        var lines = [];
+        lines.push("予算: " + budget.toLocaleString("ja-JP") + "円");
+
+        var bets = allocation.results;
+        var minROI = bets.reduce(function (m, b) { return Math.min(m, b.roi); }, Number.POSITIVE_INFINITY);
+        var maxROI = bets.reduce(function (m, b) { return Math.max(m, b.roi); }, 0);
+        var avgROI = bets.reduce(function (acc, b) { return acc + b.roi; }, 0) / bets.length;
+
+        var targetText = targetRoiValue
+          ? "希望回収率 " + targetRoiValue.toFixed(1) + "% / "
+          : "";
+
+        lines.push(
+          "合計投資額: " + allocation.totalStake.toLocaleString("ja-JP") + "円 / " +
+          targetText +
+          "単独的中ベース 最低 " + minROI.toFixed(1) + "% / 最高 " + maxROI.toFixed(1) + "% / 平均 " + avgROI.toFixed(1) + "%"
+        );
+        lines.push("");
+
+        var byType = {};
+        bets.forEach(function (b) {
+          if (!byType[b.betType]) byType[b.betType] = [];
+          byType[b.betType].push(b);
+        });
+
+        Object.keys(byType).forEach(function (betType) {
+          lines.push("【" + betType + "】");
+          byType[betType]
+            .sort(function (a, b) {
+              if (a.role === b.role) return b.roi - a.roi;
+              return a.role === "main" ? -1 : 1;
+            })
+            .forEach(function (b) {
+              lines.push(
+                roleLabel(b.role) + " " + b.label +
+                " オッズ " + b.odds.toFixed(1) + "倍 " +
+                "資金 " + b.stake.toLocaleString("ja-JP") + "円 " +
+                "単独払戻 " + b.payout.toLocaleString("ja-JP") + "円 " +
+                "単独回収率 " + b.roi.toFixed(1) + "% " +
+                "(複合パターン数: " + (b.scenarioCount || 0) + ")"
+              );
+            });
+          lines.push("");
+        });
+
+        if (scenarioResults.length > 0) {
+          lines.push("【複合パターン別 総回収率（自動判定）】");
+          scenarioResults.forEach(function (sr) {
+            var sc = sr.scenario;
+            lines.push(
+              sc.name +
+              " 払戻合計 " + sr.payout.toLocaleString("ja-JP") + "円 " +
+              "回収率 " + sr.roi.toFixed(1) + "%"
+            );
+            if (sr.hits.length > 0) {
+              lines.push(
+                " 的中: " +
+                sr.hits.map(function (b) {
+                  return roleLabel(b.role) + b.betType + b.label +
+                    " " + b.stake.toLocaleString("ja-JP") + "円→" +
+                    (b.stake * b.odds).toLocaleString("ja-JP") + "円";
+                }).join(" / ")
+              );
+            } else {
+              lines.push(" 的中: なし");
+            }
+          });
+        }
+
+        return lines.join("\n");
+      }
+
+      // ============================================================
+      // ルートHTML構築 & イベント
+      // ============================================================
+      function setupHTMLStructure() {
+        if (!rootEl) return;
+        rootEl.innerHTML = "" +
+          "<div class='st-card'>" +
+          "  <div class='st-flex-between'>" +
+          "    <h2>資金配分・複合回収率ツール（ベータ）</h2>" +
+          "  </div>" +
+          "  <div class='st-row'>" +
+          "    <div>" +
+          "      <label for='st_budget'>予算（円）</label>" +
+          "      <input id='st_budget' type='number' inputmode='numeric' placeholder='例: 10000' value='10000'>" +
+          "    </div>" +
+          "    <div>" +
+          "      <label for='st_targetRoi'>目標回収率の目安（%）</label>" +
+          "      <input id='st_targetRoi' type='number' inputmode='decimal' placeholder='例: 150' value='150'>" +
+          "    </div>" +
+          "  </div>" +
+          "  <div class='st-switch-row'>" +
+          "    <input id='st_useScenarios' type='checkbox' checked>" +
+          "    <label for='st_useScenarios' style='margin:0;'>複合でおいしい買い目ほど少し厚く配分する</label>" +
+          "  </div>" +
+          "  <div class='st-slider-row'>" +
+          "    <span>複合重み：</span>" +
+          "    <input id='st_scenarioFactor' type='range' min='0' max='2' step='0.1' value='1'>" +
+          "    <span id='st_scenarioFactorLabel'>1.0倍</span>" +
+          "  </div>" +
+          "  <div class='st-hint'>" +
+          "    ・本線は抑えより基本的に厚くなります。<br>" +
+          "    ・複合（単勝+複勝、馬連+三連複、馬単+三連単など）は自動で検出し、<br>" +
+          "　　複数当たりやすい買い目ほど少しだけ資金を厚めに配分します。" +
+          "  </div>" +
+          "</div>" +
+
+          "<div class='st-card'>" +
+          "  <h3>オッズから買い目を選択</h3>" +
+          "  <div id='st_oddsTabs' class='st-tabs'></div>" +
+          "  <div id='st_oddsTabContents'></div>" +
+          "  <div class='st-hint'>UmaAi のこのレースのオッズ（data-loader → currentOddsData）を元にしています。</div>" +
+          "</div>" +
+
+          "<div class='st-card'>" +
+          "  <div class='st-flex-between'>" +
+          "    <h3>選択中の買い目</h3>" +
+          "    <span id='st_selectedCount' class='st-badge'>0件</span>" +
+          "  </div>" +
+          "  <div id='st_selectedBetsContainer'></div>" +
+          "  <div class='st-hint'>オッズはセルで編集可能です。本線/抑えもここで変更できます。</div>" +
+          "</div>" +
+
+          "<div class='st-card'>" +
+          "  <div class='st-flex-between'>" +
+          "    <h3>資金配分・回収率の計算</h3>" +
+          "    <button id='st_calcBtn' type='button'>資金配分を計算</button>" +
+          "  </div>" +
+          "  <div id='st_errorArea' class='st-error'></div>" +
+          "</div>" +
+
+          "<div class='st-card' id='st_resultCard' style='display:none;'>" +
+          "  <div class='st-flex-between'>" +
+          "    <h3>結果</h3>" +
+          "    <button id='st_copyResultBtn' type='button' class='st-secondary'>結果をコピー</button>" +
+          "  </div>" +
+          "  <div id='st_allocationResult'></div>" +
+          "  <div id='st_scenarioResult'></div>" +
+          "</div>";
+      }
+
+      function bindEvents() {
+        var sfSlider = q("#st_scenarioFactor");
+        var sfLabel = q("#st_scenarioFactorLabel");
+        if (sfSlider && sfLabel) {
+          sfLabel.textContent = parseFloat(sfSlider.value).toFixed(1) + "倍";
+          sfSlider.addEventListener("input", function () {
+            sfLabel.textContent = parseFloat(sfSlider.value).toFixed(1) + "倍";
+          });
+        }
+
+        var calcBtn = q("#st_calcBtn");
+        if (calcBtn) {
+          calcBtn.addEventListener("click", function () {
+            var errorArea = q("#st_errorArea");
+            if (errorArea) errorArea.textContent = "";
+
+            var budgetInput = q("#st_budget");
+            var targetInput = q("#st_targetRoi");
+            var useScenariosInput = q("#st_useScenarios");
+            var scenarioFactorInput = q("#st_scenarioFactor");
+
+            var budget = parseFloat(budgetInput && budgetInput.value);
+            if (Number.isNaN(budget) || budget <= 0) {
+              if (errorArea) errorArea.textContent = "予算を正しく入力してください。";
+              return;
+            }
+            budget = Math.round(budget / 100) * 100;
+            if (budgetInput) budgetInput.value = String(budget);
+
+            var targetRoiValue = parseFloat(targetInput && targetInput.value);
+            if (Number.isNaN(targetRoiValue) || targetRoiValue <= 0) {
+              targetRoiValue = null;
+            }
+
+            try {
+              var useScenarios = !!(useScenariosInput && useScenariosInput.checked);
+              var scenarioFactor = parseFloat(scenarioFactorInput && scenarioFactorInput.value);
+
+              var allocation = calculateAllocation(budget, useScenarios, scenarioFactor);
+              allocation.results.forEach(function (b) {
+                selectedBets.set(b.key, b);
+              });
+              lastAllocation = allocation;
+              lastBudget = budget;
+
+              renderSelectedBets();
+              renderAllocationResult(budget, targetRoiValue, allocation);
+
+              var scenarioResults = calculateScenarioResults(budget, allocation);
+              renderScenarioResult(budget, scenarioResults);
+
+              var resultCard = q("#st_resultCard");
+              if (resultCard) resultCard.style.display = "block";
+            } catch (e) {
+              console.error(e);
+              if (errorArea) errorArea.textContent = e.message || "計算中にエラーが発生しました。";
+            }
+          });
+        }
+
+        var copyBtn = q("#st_copyResultBtn");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", function () {
+            if (!lastAllocation || !lastBudget) return;
+            var targetInput = q("#st_targetRoi");
+            var targetRoiValue = parseFloat(targetInput && targetInput.value);
+            if (Number.isNaN(targetRoiValue) || targetRoiValue <= 0) {
+              targetRoiValue = null;
+            }
+            var scenarioResults = calculateScenarioResults(lastBudget, lastAllocation);
+            var text = buildCopyText(lastBudget, targetRoiValue, lastAllocation, scenarioResults);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(function () {
+                alert("結果をクリップボードにコピーしました。");
+              }).catch(function () {
+                alert("コピーに失敗しました。手動で選択してコピーしてください。");
+              });
+            } else {
+              alert("このブラウザでは自動コピーが使えません。手動で選択してコピーしてください。");
+            }
+          });
+        }
+      }
+
+      // ============================================================
+      // 公開API: mountOrUpdate(rootEl, oddsData)
+      // ============================================================
+      function mountOrUpdate(root, oddsData) {
+        rootEl = root;
+        selectedBets.clear();
+        lastAllocation = null;
+        lastBudget = 0;
+        autoScenarios = [];
+
+        initOddsFromLoaderData(oddsData || []);
+        setupHTMLStructure();
+        bindEvents();
+        renderOddsTabs();
+        renderSelectedBets();
+      }
+
+      // グローバルに公開
+      window.UmaAiStakingTool = {
+        mountOrUpdate: mountOrUpdate
+      };
+
+      // ============================================================
+      // loadAndRenderOdds をフックして、オッズタブの下に自動で設置
+      // ============================================================
+      function setupHook() {
+        var original = window.loadAndRenderOdds;
+        window.loadAndRenderOdds = function () {
+          var maybePromise;
+          if (typeof original === "function") {
+            maybePromise = original();
+          }
+          var after = function () {
+            var oddsData = window.currentOddsData;
+            var container = document.getElementById("oddsContent");
+            if (!container || !Array.isArray(oddsData)) return;
+
+            var root = document.getElementById("umaaiStakingTool");
+            if (!root) {
+              root = document.createElement("div");
+              root.id = "umaaiStakingTool";
+              container.appendChild(root);
+            }
+            window.UmaAiStakingTool.mountOrUpdate(root, oddsData);
+          };
+
+          if (maybePromise && typeof maybePromise.then === "function") {
+            return maybePromise.then(after);
+          } else {
+            after();
+            return maybePromise;
+          }
+        };
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", setupHook);
+      } else {
+        setupHook();
+      }
+    })();
+    </script>
+    <!-- ▲▲▲ UmaAi 資金配分・複合回収率ツール ここまで ▲▲▲ -->
 
     <!-- 共有機能 -->
     <script src="./share-image-generator.js"></script>
