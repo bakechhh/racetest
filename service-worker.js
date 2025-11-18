@@ -4,6 +4,7 @@ const urlsToCache = [
   '/keiba-index/index.html',
   '/keiba-index/app.js',
   '/keiba-index/data-loader.js',
+  '/keiba-index/supabase-client.js',
   '/keiba-index/manifest.json',
   '/keiba-index/notification.js',
   'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js'
@@ -56,6 +57,12 @@ self.addEventListener('fetch', (event) => {
   
   // OpenAI APIはキャッシュをスキップ
   if (url.hostname.includes('api.openai.com')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Supabase APIはキャッシュをスキップ
+  if (url.hostname.includes('supabase.co')) {
     event.respondWith(fetch(event.request));
     return;
   }
