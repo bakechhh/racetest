@@ -2343,6 +2343,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 raceList.innerHTML = '<div class="error">該当するレースが見つかりませんでした</div>';
                 return;
             }
+            // ★ これを追加：開催場所→R番号の自然順でソート
+            filteredRaces.sort((a, b) => {
+                if (a.place !== b.place) return a.place.localeCompare(b.place);
+                return Number(a.round) - Number(b.round);  // ← 1,2,3,10,11,12 の順に並ぶ
+            });
 
             filteredRaces.forEach((race, index) => {
                 const card = document.createElement('div');
