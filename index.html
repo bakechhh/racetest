@@ -2484,6 +2484,10 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             generateSimpleView(sortedRace);
             generateDetailView(sortedRace);
 
+            // ★ ここを追加：selectedRace も「今の並び」に合わせる
+            selectedRace = sortedRace;
+            window.selectedRace = sortedRace;
+
             // 馬印を復元（localStorageから読み込み済みのhorseMarksを使用）
             updateAllViews(raceIdKey);
 
@@ -3107,6 +3111,12 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             // ソート済みデータを保存
             const sortedRace = {...race, horses: sortedHorses};
             sortedRaces[raceId] = sortedRace;
+
+            // ★ 今表示中のレースなら selectedRace も更新
+            if (selectedRace && getRaceId(selectedRace) === raceId) {
+              selectedRace = sortedRace;
+              window.selectedRace = sortedRace;
+            }
 
             // 再描画
             generateListView(sortedRace);
