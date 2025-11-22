@@ -4,7 +4,7 @@
  */
 
 /**
- * AI分析結果をクリップボードにコピー
+ * AI分析結果をクリップボードにコピー（LINE など汎用）
  */
 function copyToClipboard() {
     const aiResultDiv = document.getElementById('aiResult');
@@ -31,6 +31,34 @@ function copyToClipboard() {
     }).catch(err => {
         console.error('クリップボードへのコピーに失敗しました:', err);
         alert('クリップボードへのコピーに失敗しました。ブラウザの設定を確認してください。');
+    });
+}
+
+/**
+ * 記事・ブログ向け：AI分析結果を Markdown 形式でクリップボードにコピー
+ */
+function copyNoteText() {
+    const aiResultDiv = document.getElementById('aiResult');
+    
+    if (!aiResultDiv || !aiResultDiv.textContent.trim()) {
+        alert('詳細テキストとして共有するAI分析結果がありません。先にAI分析を実行してください。');
+        return;
+    }
+
+    if (!selectedRace) {
+        alert('レースが選択されていません。');
+        return;
+    }
+
+    const resultText = aiResultDiv.innerText || aiResultDiv.textContent;
+
+    const noteText = generateNoteShareText(selectedRace, resultText);
+
+    navigator.clipboard.writeText(noteText).then(() => {
+        alert('記事用テキストをクリップボードにコピーしました！\nnoteやブログの本文にそのまま貼り付けできます。');
+    }).catch(err => {
+        console.error('記事用テキストのコピーに失敗しました:', err);
+        alert('記事用テキストのコピーに失敗しました。ブラウザの設定を確認してください。');
     });
 }
 
@@ -78,6 +106,65 @@ function generateShareText(race, aiResult) {
     shareText += '競馬AI予測ツール - UmaAi';
     
     return shareText;
+}
+
+/**
+ * 記事・ブログ向け共有テキストを Markdown 形式で生成
+ * @param {object} race - レースデータ
+ * @param {string} aiResult - AI分析結果のテキスト
+ * @returns {string} Markdown テキスト
+ */
+function generateNoteShareText(race, aiResult) {
+    const sections = extractSections(aiResult);
+
+    // レース情報（見出し＋基本情報）
+    let text = '';
+
+    text += `# 🏇 ${race.race_number} ${race.race_name}\n\n`;
+
+    text += `- 条件: ${race.distance} / ${race.track_condition}\n`;
+    if (race.start_time) {
+        text += `- 発走時刻: ${race.start_time}\n`;
+    }
+    if (race.num_horses) {
+        text += `- 頭数: ${race.num_horses}頭\n`;
+    }
+    text += '\n';
+
+    // レース総評
+    if (sections.summary) {
+        text += '## 📊 レース総評\n\n';
+        text += sections.summary.trim() + '\n\n';
+    }
+
+    // 狙い目分析
+    if (sections.targets) {
+        text += '## 🎯 狙い目分析\n\n';
+        text += sections.targets.trim() + '\n\n';
+    }
+
+    // 馬印
+    if (sections.marks) {
+        text += '## 🐴 馬印\n\n';
+        text += sections.marks.trim() + '\n\n';
+    }
+
+    // 全馬総評
+    if (sections.allHorses) {
+        text += '## 🐴 全馬総評\n\n';
+        text += sections.allHorses.trim() + '\n\n';
+    }
+
+    // データ分析詳細
+    if (sections.dataAnalysis) {
+        text += '## 🔍 データ分析詳細\n\n';
+        text += sections.dataAnalysis.trim() + '\n\n';
+    }
+
+    text += '---\n\n';
+    text += '※本記事は「競馬AI予測ツール - UmaAi」による自動分析結果をもとに作成されています。';
+
+    return text;
 }
 
 /**
@@ -136,47 +223,95 @@ function extractSections(text) {
 
 /**
  * AI分析結果表示エリアにクリップボードコピーボタンを追加
+ * - 通常共有ボタン
+ * - 記事用Markdown共有ボタン
  */
 function addCopyButton() {
     const aiResultDiv = document.getElementById('aiResult');
     if (!aiResultDiv) return;
 
-    // ボタンが既に存在する場合は追加しない
-    if (document.getElementById('copyBtn')) return;
+    // 既にボタンが存在する場合は追加しない
+    if (document.getElementById('copyBtn') && document.getElementById('noteCopyBtn')) return;
 
-    // ボタンを作成
-    const button = document.createElement('button');
-    button.id = 'copyBtn';
-    button.innerHTML = '📋 クリップボードにコピー';
-    button.style.cssText = `
-        width: 100%;
-        padding: 15px;
-        margin-top: 20px;
-        border: none;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-weight: bold;
-        font-size: 16px;
-        cursor: pointer;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transition: all 0.3s;
-    `;
-    
-    button.onmouseover = function() {
-        this.style.opacity = '0.9';
-        this.style.transform = 'translateY(-2px)';
-    };
-    
-    button.onmouseout = function() {
-        this.style.opacity = '1';
-        this.style.transform = 'translateY(0)';
-    };
-    
-    button.onclick = copyToClipboard;
-    
-    // AI分析結果の最後に追加
-    aiResultDiv.appendChild(button);
+    // ラッパー div（ボタンを縦に2つ並べる）
+    let wrapper = document.getElementById('copyButtonsWrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'copyButtonsWrapper';
+        wrapper.style.width = '100%';
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.gap = '10px';
+        wrapper.style.marginTop = '20px';
+        aiResultDiv.appendChild(wrapper);
+    }
+
+    // 通常共有ボタン
+    if (!document.getElementById('copyBtn')) {
+        const button = document.createElement('button');
+        button.id = 'copyBtn';
+        button.innerHTML = '📋 クリップボードにコピー（汎用共有）';
+        button.style.cssText = `
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        `;
+        
+        button.onmouseover = function() {
+            this.style.opacity = '0.9';
+            this.style.transform = 'translateY(-2px)';
+        };
+        
+        button.onmouseout = function() {
+            this.style.opacity = '1';
+            this.style.transform = 'translateY(0)';
+        };
+        
+        button.onclick = copyToClipboard;
+
+        wrapper.appendChild(button);
+    }
+
+    // 記事用共有ボタン（Markdown）
+    if (!document.getElementById('noteCopyBtn')) {
+        const noteButton = document.createElement('button');
+        noteButton.id = 'noteCopyBtn';
+        noteButton.innerHTML = '✏️ 記事用テキストをコピー（Markdown）';
+        noteButton.style.cssText = `
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+            transition: all 0.3s;
+        `;
+        
+        noteButton.onmouseover = function() {
+            this.style.background = '#f3f4ff';
+        };
+        
+        noteButton.onmouseout = function() {
+            this.style.background = '#ffffff';
+        };
+        
+        noteButton.onclick = copyNoteText;
+
+        wrapper.appendChild(noteButton);
+    }
 }
 
 /**
