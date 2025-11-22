@@ -2242,6 +2242,34 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
         function getRaceId(race) {
             return `${race.date}_${race.place}_${race.round}`;
         }
+        /**
+         * 全レースに単勝オッズから人気を付与する
+         * - data-loader.js の loadOddsData(raceId) を使用
+         * - addPopularityToHorses(race, oddsData) で race.horses[].popularity を追加
+         */
+        async function enrichAllRacesWithPopularity() {
+            if (typeof window.loadOddsData !== 'function') {
+                console.warn('[人気付与] loadOddsData が見つからないためスキップします');
+                return;
+            }
+
+            const tasks = allRaces.map(async (race) => {
+                try {
+                    if (!race || !race.race_number) {
+                        return;
+                    }
+                    const raceId = race.race_number; // 例: "京都2R"
+                    const oddsData = await window.loadOddsData(raceId);
+                    if (Array.isArray(oddsData) && oddsData.length > 0) {
+                        addPopularityToHorses(race, oddsData);
+                    }
+                } catch (error) {
+                    console.warn('[人気付与] 処理中にエラー:', error);
+                }
+            });
+
+            await Promise.all(tasks);
+        }
 
         // データを読み込み
         async function loadData() {
@@ -2251,8 +2279,15 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                     await window.cleanupOldAnalysisResults();
                 }
 
-                // racedataフォルダから個別JSONファイルを読み込む
+                // Supabase から全レースデータを読み込み
                 allRaces = await loadAllRaceData();
+
+                // オッズから人気を付与（買いレース判定・妙味判定に使用）
+                try {
+                    await enrichAllRacesWithPopularity();
+                } catch (error) {
+                    console.warn('[人気付与] 全レース処理でエラー:', error);
+                }
 
                 // フィルター初期化
                 initializeFilters();
@@ -2267,17 +2302,12 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 // 更新情報を表示
                 const now = new Date();
                 document.getElementById('updateInfo').textContent =
-                    `最終更新: ${now.toLocaleString('ja-JP')} | レース数: ${allRaces.length}`;
-
-                // プリセット選択を初期化
-                initPresetSelect();
+                    `最終更新: ${now.toLocaleString()}`;
 
             } catch (error) {
-                console.error('エラー:', error);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').textContent =
-                    `データの読み込みに失敗しました: ${error.message}`;
+                console.error('データ読み込みエラー:', error);
+                document.getElementById('loading').innerHTML =
+                    '<div class="error">データの読み込みに失敗しました</div>';
             }
         }
 
@@ -2334,6 +2364,155 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             closeHorseList();
         }
 
+        /**
+         * レースの買いレース度を0〜5で算出する（0.5刻みで加点）
+         *
+         * 評価軸:
+         *  1. 頭数（fieldScore）        : 0 〜 1.0
+         *  2. 軸の質（axisScore）       : 0 〜 2.0
+         *  3. 妙味馬の数（valueScore） : 0 〜 2.5
+         */
+        function getRaceBuyLevel(race) {
+            if (!race || !Array.isArray(race.horses) || race.horses.length === 0) {
+                return 0;
+            }
+
+            const horses = race.horses;
+
+            // ========= 1. 頭数スコア =========
+            let fieldScore = 0;
+            const numHorses = typeof race.num_horses === 'number'
+                ? race.num_horses
+                : horses.length;
+
+            // 10〜13頭で +0.5, 14頭以上で +1.0
+            if (numHorses >= 10 && numHorses <= 13) {
+                fieldScore = 0.5;
+            } else if (numHorses >= 14) {
+                fieldScore = 1.0;
+            }
+
+            // ========= 2. 軸の質（複勝スコア） =========
+            let axisScore = 0;
+            let bestShowHorse = null;
+            let bestShowRate = -1;
+
+            horses.forEach((horse) => {
+                if (!horse.predictions) return;
+                const showRate = typeof horse.predictions.show_rate === 'number'
+                    ? horse.predictions.show_rate
+                    : 0;
+
+                if (showRate > bestShowRate) {
+                    bestShowRate = showRate;
+                    bestShowHorse = horse;
+                }
+            });
+
+            if (bestShowHorse && bestShowRate > 0) {
+                // 複勝スコアの高さで 0〜1.5 点
+                if (bestShowRate >= 0.70 && bestShowRate < 0.78) {
+                    axisScore += 0.5;
+                } else if (bestShowRate >= 0.78 && bestShowRate < 0.85) {
+                    axisScore += 1.0;
+                } else if (bestShowRate >= 0.85) {
+                    axisScore += 1.5;
+                }
+
+                const pop = typeof bestShowHorse.popularity === 'number'
+                    ? bestShowHorse.popularity
+                    : null;
+
+                // 4〜9番人気くらいの「ちょい人気薄の軸」は少しプラス
+                if (pop !== null && pop >= 4 && pop <= 9 && bestShowRate >= 0.75) {
+                    axisScore += 0.5;
+                }
+
+                // 1〜2人気のガチガチ本命戦は妙味薄なので少しマイナス
+                if (pop !== null && pop <= 2 && axisScore > 0.5) {
+                    axisScore -= 0.5;
+                }
+            }
+
+            // 上限 2.0 にクリップ
+            if (axisScore < 0) axisScore = 0;
+            if (axisScore > 2.0) axisScore = 2.0;
+
+            // ========= 3. 妙味馬の数（AI順位 vs 人気） =========
+            let majorValueCount = 0; // AI上位（〜3位）なのに人気は5番手以下 & 差3以上
+            let minorValueCount = 0; // AI中位（〜5位）なのに人気は7番手以下 & 差2以上
+
+            horses.forEach((horse) => {
+                if (!horse.predictions) return;
+                if (typeof horse.popularity !== 'number') return;
+
+                const pop = horse.popularity;
+
+                const winRank = typeof horse.predictions.win_rate_rank === 'number'
+                    ? horse.predictions.win_rate_rank
+                    : 99;
+                const placeRank = typeof horse.predictions.place_rate_rank === 'number'
+                    ? horse.predictions.place_rate_rank
+                    : 99;
+                const showRank = typeof horse.predictions.show_rate_rank === 'number'
+                    ? horse.predictions.show_rate_rank
+                    : 99;
+
+                const aiBestRank = Math.min(winRank, placeRank, showRank);
+                const diff = pop - aiBestRank;
+
+                if (aiBestRank <= 3 && pop >= 5 && diff >= 3) {
+                    majorValueCount += 1;
+                } else if (aiBestRank <= 5 && pop >= 7 && diff >= 2) {
+                    minorValueCount += 1;
+                }
+            });
+
+            let valueScore = 0;
+            if (majorValueCount >= 2) {
+                valueScore = 2.5;
+            } else if (majorValueCount === 1) {
+                valueScore = 1.5;
+            } else if (minorValueCount >= 2) {
+                valueScore = 1.0;
+            } else if (minorValueCount === 1) {
+                valueScore = 0.5;
+            }
+
+            // ========= 合算 & 補正 =========
+            let total = fieldScore + axisScore + valueScore;
+
+            // 軸も妙味もないときは、「多頭数だからとりあえず★」を抑える
+            if (axisScore === 0 && valueScore === 0) {
+                if (fieldScore >= 1.0) {
+                    total = 1.0;
+                } else {
+                    total = 0.0;
+                }
+            }
+
+            if (total < 0) total = 0;
+            if (total > 5) total = 5;
+
+            return total;
+        }
+
+        /**
+         * 小数（0〜5）を★0〜★5に丸めて表示
+         */
+        function renderBuyLevelStars(level) {
+            const maxStars = 5;
+            // 0.5刻みで加点しているので、ここでは四捨五入して★数を決める
+            const n = Math.max(0, Math.min(maxStars, Math.round(level)));
+
+            let stars = '';
+            for (let i = 0; i < maxStars; i++) {
+                stars += i < n ? '★' : '☆';
+            }
+            return stars;
+        }
+
+
         // レース一覧を表示
         function displayRaces() {
             const raceList = document.getElementById('raceList');
@@ -2343,10 +2522,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 raceList.innerHTML = '<div class="error">該当するレースが見つかりませんでした</div>';
                 return;
             }
-            // ★ これを追加：開催場所→R番号の自然順でソート
+
+            // 開催場所→R番号の自然順でソート
             filteredRaces.sort((a, b) => {
                 if (a.place !== b.place) return a.place.localeCompare(b.place);
-                return Number(a.round) - Number(b.round);  // ← 1,2,3,10,11,12 の順に並ぶ
+                return Number(a.round) - Number(b.round);
             });
 
             filteredRaces.forEach((race, index) => {
@@ -2357,21 +2537,41 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 const raceId = `${race.place}${race.round}R`;
                 const isFavorite = isFavoriteRace(raceId);
 
+                // 買いレース度（0〜5）と★表示
+                const buyLevel = getRaceBuyLevel(race);
+                const buyLevelStars = renderBuyLevelStars(buyLevel);
+
+                // race オブジェクトにも保持しておく（他で使いたいとき用）
+                race.buy_level = buyLevel;
+
                 card.innerHTML = `
                     <div class="race-header">
-                        <input type="checkbox" class="race-select-checkbox" data-race-index="${index}" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer; margin-right: 10px;">
+                        <input
+                            type="checkbox"
+                            class="race-select-checkbox"
+                            data-race-index="${index}"
+                            onclick="event.stopPropagation();"
+                            style="width: 20px; height: 20px; cursor: pointer; margin-right: 10px;"
+                        >
                         <div class="race-number">${race.place}${race.round}R</div>
                         <div class="race-info">
                             ${race.date}<br>
                             ${race.surface} ${race.distance}m
                         </div>
-                        <button class="favorite-btn" onclick="event.stopPropagation(); toggleFavoriteRace('${raceId}', this);" style="background: none; border: none; font-size: 20px; cursor: pointer;">
+                        <button
+                            class="favorite-btn"
+                            onclick="event.stopPropagation(); toggleFavoriteRace('${raceId}', this);"
+                            style="background: none; border: none; font-size: 20px; cursor: pointer;"
+                        >
                             ${isFavorite ? '⭐' : '☆'}
                         </button>
                     </div>
                     <div class="race-name">${race.race_name}</div>
                     <div class="race-details">
-                        ${race.race_class} | ${race.num_horses}頭立て
+                        ${race.race_class} | ${race.num_horses}頭立て<br>
+                        <span style="font-size: 13px; color: #ff9800; font-weight: 600;">
+                            買いレース度: ${buyLevelStars}
+                        </span>
                     </div>
                 `;
 
