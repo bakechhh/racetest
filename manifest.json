@@ -2,7 +2,7 @@
   "name": "競馬AI予測ツール-UmaAi-",
   "short_name": "UmaAi",
   "description": "LightGBM機械学習モデルとAIを活用した競馬予測システム",
-  "start_url": "/keiba-index/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#667eea",
@@ -48,6 +48,6 @@
   "categories": ["sports", "entertainment"],
   "lang": "ja",
   "dir": "ltr",
-  "scope": "/keiba-index/",
+  "scope": "/",
   "prefer_related_applications": false
 }
