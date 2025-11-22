@@ -1158,10 +1158,10 @@ function buildKeyHorseSummaryHtml(race, analysisText) {
         const popText = (typeof h.pop === 'number') ? `${h.pop}人気` : '';
         const rates = [];
         if (typeof h.show === 'number' && h.show > 0) {
-            rates.push(`複勝 ${(h.show * 100).toFixed(1)}%`);
+            rates.push(`複勝 ${(h.show * 100).toFixed(1)}`);
         }
         if (typeof h.win === 'number' && h.win > 0) {
-            rates.push(`単勝 ${(h.win * 100).toFixed(1)}%`);
+            rates.push(`単勝 ${(h.win * 100).toFixed(1)}`);
         }
         const rateText = rates.join(' / ');
 
