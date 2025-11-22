@@ -2735,15 +2735,52 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 </div>
             `;
 
-            // 共有用画像生成ボタン
+            // 共有用画像生成ボタン（横長＋縦長 2種類）
             let shareButtonHtml = `
-                <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <button onclick="generateShareImage(selectedRace)"
-                            style="width: 100%; padding: 15px; border: none; border-radius: 8px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s;">
-                        📸 共有用画像を生成
-                    </button>
+                <div style="background: white; border-radius: 10px; padding: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="font-weight: bold; color: #667eea; margin-bottom: 8px;">
+                        📸 共有用画像
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button
+                            onclick="generateShareImage(selectedRace)"
+                            style="
+                                width: 100%;
+                                padding: 12px;
+                                border: none;
+                                border-radius: 8px;
+                                background: #ffffff;
+                                color: #667eea;
+                                font-size: 14px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                border: 1px solid #667eea;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+                            "
+                        >
+                            SNS向け横長画像を生成
+                        </button>
+                        <button
+                            onclick="generateNoteImage(selectedRace)"
+                            style="
+                                width: 100%;
+                                padding: 14px;
+                                border: none;
+                                border-radius: 8px;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: #ffffff;
+                                font-size: 15px;
+                                font-weight: bold;
+                                cursor: pointer;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                            "
+                        >
+                            レース表画像を生成（全頭・スマホ向け）
+                        </button>
+                    </div>
                 </div>
             `;
+
 
             let html = modelInfoHtml + sortButtonsHtml + shareButtonHtml + `
                 <table class="list-table">
