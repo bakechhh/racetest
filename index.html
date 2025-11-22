@@ -1444,6 +1444,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                         </button>
                     </div>
                 </div>
+                
+                <!-- AI注目馬サマリー -->
+                <div id="aiKeyHorsesSummary" class="ai-keyhorses-summary">
+                    <!-- AI注目馬の要約がここに表示されます -->
+                </div>
 
                 <!-- 分析結果 -->
                 <div class="ai-result-modern" id="aiResult">
@@ -1459,6 +1464,95 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 padding: 20px;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
                 display: none;
+            }
+
+            .ai-keyhorses-summary {
+                margin-top: 15px;
+                margin-bottom: 16px;
+            }
+
+            .ai-keyhorses-card {
+                background: #f9fafb;
+                border-radius: 12px;
+                padding: 12px 14px;
+                border: 1px solid #e5e7eb;
+                font-size: 13px;
+            }
+
+            .ai-keyhorses-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+            }
+
+            .ai-keyhorses-title {
+                font-weight: 700;
+                color: #374151;
+                font-size: 14px;
+            }
+
+            .ai-keyhorses-tagline {
+                font-size: 11px;
+                color: #6b7280;
+            }
+
+            .ai-keyhorses-section {
+                margin-top: 6px;
+            }
+
+            .ai-keyhorses-section-title {
+                font-size: 12px;
+                font-weight: 600;
+                color: #4b5563;
+                margin-bottom: 2px;
+            }
+
+            .ai-keyhorses-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .ai-horse-chip {
+                border-radius: 9999px;
+                padding: 3px 8px;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                font-size: 11px;
+                color: #111827;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                max-width: 100%;
+            }
+
+            .ai-horse-chip-main {
+                border-color: #6366f1;
+                background: #eef2ff;
+            }
+
+            .ai-horse-chip-himo {
+                border-color: #10b981;
+                background: #ecfdf5;
+            }
+
+            .ai-horse-chip-value {
+                border-color: #f97316;
+                background: #fff7ed;
+            }
+
+            .ai-horse-chip-danger {
+                border-color: #ef4444;
+                background: #fef2f2;
+            }
+
+            .ai-horse-chip-name {
+                font-weight: 600;
+            }
+
+            .ai-horse-chip-sub {
+                color: #6b7280;
             }
 
             .ai-view.active {

@@ -224,11 +224,8 @@ async function runAIAnalysis() {
     const paddockHorses = Array.from(document.querySelectorAll('input[name="paddockEval"]:checked')).map(cb => parseInt(cb.value));
 
     try {
-        // オッズデータが読み込まれていない場合は読み込む
-        if (!currentOddsData) {
-            const raceId = selectedRace.race_number;
-            currentOddsData = await window.loadOddsData(raceId);
-        }
+        const raceId = selectedRace.race_number;
+        currentOddsData = await window.loadOddsData(raceId);
 
         // プロンプト作成（パドック情報を含む）
         const prompt = createPrompt(selectedRace, currentOddsData, { budget, minReturn, targetReturn, betTypes, paddockHorses });
@@ -355,9 +352,12 @@ async function runAIAnalysis() {
         // レスポンスからテキストを抽出
         const analysisText = result.candidates[0].content.parts[0].text;
 
+        // 注目馬サマリーを更新
+        updateKeyHorseSummary(selectedRace, analysisText);
+
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
-        
+
         // localStorageに保存
         saveAIAnalysisResult(selectedRace.race_number, {
             timestamp: Date.now(),
@@ -471,11 +471,11 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 複勝率50%前後で信頼性が高い
 - 軸馬または有力な相手馬として採用
 
-**複勝スコア0.48〜0.7**:
+**複勝スコア0.45〜0.7**:
 - 複勝率30〜50%程度
 - 相手馬・ヒモとして活用可能
 
-**複勝スコア0.48未満**:
+**複勝スコア0.45未満**:
 - 複勝率が低く、基本的には馬券に含めにくい
 - 特殊な条件（パドック良好など）がない限り除外
 
@@ -760,7 +760,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - ☆（穴）: 1頭
 - 注（注意）: 以下の条件を満たす馬（該当馬がいる場合のみ、複数頭可）
   - パドック良好馬で上位印（◎○▲△☆）に選ばれていない馬
-  - または、複勝スコア0.48以上で上位印に選ばれていない馬
+  - または、複勝スコア0.45以上で上位印に選ばれていない馬
 
 **印の付け方**:
 - ◎ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
@@ -769,7 +769,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - △ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
 - ☆ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
 - 🐴注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※パドック良好
-- 📊注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※スコア0.48以上
+- 📊注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※スコア0.45以上
 
 **印の意味**:
 - **◎本命**: 3つの順位で総合的に最上位、最も信頼できる1頭
@@ -778,7 +778,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - **△連下**: 2～3着候補、いずれかの順位で上位
 - **☆穴**: 総合5番手、特定の指標で光るものがある
 - **🐴注**: パドック良好馬で上位印に選ばれていない馬
-- **📊注**: 複勝スコア0.48以上で上位印に選ばれていない馬
+- **📊注**: 複勝スコア0.45以上で上位印に選ばれていない馬
 
 ### 🐴 全馬総評
 
@@ -920,6 +920,311 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - ユーザーの目標に最適な組み合わせを考案すること
 `;
 }
+
+// ====================
+// AI 注目馬サマリー生成
+// ====================
+
+/**
+ * 全角数字を半角に変換
+ * @param {string} str
+ * @returns {string}
+ */
+function normalizeNumberText(str) {
+    if (!str) return '';
+    const full = '０１２３４５６７８９';
+    const half = '0123456789';
+    return str.replace(/[０-９]/g, ch => half[full.indexOf(ch)]);
+}
+
+/**
+ * 馬印テキストから AI の馬印（◎○▲△☆）を馬番ごとに抽出
+ * @param {string} marksText
+ * @returns {Object.<number, Set<string>>} // { horseNum: Set(markSymbols) }
+ */
+function parseMarksFromText(marksText) {
+    const result = {};
+    if (!marksText) return result;
+
+    const lines = marksText.split(/\r?\n/);
+    const markSymbols = ['◎', '○', '▲', '△', '☆'];
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        for (const symbol of markSymbols) {
+            const idx = line.indexOf(symbol);
+            if (idx === -1) continue;
+
+            const rest = line.slice(idx + 1);
+            const numMatches = rest.match(/[0-9０-９]+/g);
+            if (!numMatches) continue;
+
+            for (const numStr of numMatches) {
+                const n = parseInt(normalizeNumberText(numStr), 10);
+                if (!n || Number.isNaN(n)) continue;
+                if (!result[n]) result[n] = new Set();
+                result[n].add(symbol);
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * テキスト中から「紐」扱いされた馬番を抽出
+ * @param {string} text
+ * @returns {Set<number>}
+ */
+function parseHimoFromText(text) {
+    const result = new Set();
+    if (!text) return result;
+
+    const lines = text.split(/\r?\n/);
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        if (!line.includes('紐')) continue;
+
+        const numMatches = line.match(/[0-9０-９]+/g);
+        if (!numMatches) continue;
+
+        for (const numStr of numMatches) {
+            const n = parseInt(normalizeNumberText(numStr), 10);
+            if (!n || Number.isNaN(n)) continue;
+            result.add(n);
+        }
+    }
+
+    return result;
+}
+
+/**
+ * AI・馬印・オッズから注目馬を分類
+ * @param {Object} race
+ * @param {string} analysisText
+ * @returns {{main: Array, himo: Array, value: Array}}
+ */
+function classifyKeyHorses(race, analysisText) {
+    const horses = race?.horses || [];
+    const result = { main: [], himo: [], value: [] };
+
+    if (!horses.length) return result;
+
+    let sections = null;
+    if (typeof extractSections === 'function' && analysisText) {
+        sections = extractSections(analysisText);
+    }
+
+    const aiMarksByNum = sections?.marks ? parseMarksFromText(sections.marks) : {};
+    const himoNums = new Set();
+    if (sections?.targets) {
+        const fromTargets = parseHimoFromText(sections.targets);
+        fromTargets.forEach(n => himoNums.add(n));
+    }
+    if (sections?.summary) {
+        const fromSummary = parseHimoFromText(sections.summary);
+        fromSummary.forEach(n => himoNums.add(n));
+    }
+
+    const raceId = (typeof getRaceId === 'function' && race) ? getRaceId(race) : null;
+
+    // 予測値から基準値を計算
+    let maxShow = 0;
+    let maxWin = 0;
+    horses.forEach(h => {
+        const win = h.predictions?.win_rate || 0;
+        const show = h.predictions?.show_rate || 0;
+        if (win > maxWin) maxWin = win;
+        if (show > maxShow) maxShow = show;
+    });
+
+    // 人気とAI順位の乖離で妙味を判定
+    function getValueScore(h) {
+        const pop = typeof h.popularity === 'number' ? h.popularity : null;
+        const winRank = h.predictions?.win_rate_rank || null;
+        const showRank = h.predictions?.show_rate_rank || null;
+        const placeRank = h.predictions?.place_rate_rank || null;
+
+        const ranks = [winRank, showRank, placeRank].filter(v => typeof v === 'number');
+        if (!ranks.length) return 0;
+        const bestRank = Math.min(...ranks);
+        if (!pop || !bestRank || Number.isNaN(bestRank)) return 0;
+
+        const gap = pop - bestRank; // 人気 > AI順位 でプラス
+        if (gap <= 1) return 0;
+        let score = gap;
+
+        const show = h.predictions?.show_rate || 0;
+        if (show >= 0.7) score += 1;
+        else if (show >= 0.6) score += 0.5;
+
+        return score;
+    }
+
+    horses.forEach((horse, index) => {
+        const num = horse.horse_number;
+        const name = horse.horse_name || '';
+        const pop = typeof horse.popularity === 'number' ? horse.popularity : null;
+
+        const aiMarks = aiMarksByNum[num] || new Set();
+
+        // ユーザーの馬印（3スロット全部見る）
+        let userMarks = [];
+        if (raceId && typeof horseMarks === 'object' && horseMarks[raceId]?.[index]) {
+            const slots = horseMarks[raceId][index];
+            slots.forEach(idx => {
+                const m = MARKS[idx];
+                if (m && m.symbol !== '—') userMarks.push(m.symbol);
+            });
+        }
+
+        const win = horse.predictions?.win_rate || 0;
+        const show = horse.predictions?.show_rate || 0;
+
+        const hasMainMark =
+            aiMarks.has('◎') ||
+            aiMarks.has('○') ||
+            userMarks.includes('◎') ||
+            userMarks.includes('○');
+
+        const hasHimoMark =
+            aiMarks.has('▲') ||
+            aiMarks.has('△') ||
+            aiMarks.has('☆') ||
+            userMarks.some(s => ['▲', '△', '☆'].includes(s)) ||
+            himoNums.has(num);
+
+        const valueScore = getValueScore(horse);
+        const isValue = valueScore >= 2;
+
+        const candidate = {
+            num,
+            name,
+            pop,
+            win,
+            show,
+            aiMarks: Array.from(aiMarks),
+            userMarks,
+            valueScore
+        };
+
+        // 軸候補
+        if (hasMainMark || show >= 0.75 * (maxShow || 1)) {
+            result.main.push(candidate);
+        }
+
+        // 紐・相手候補
+        if (hasHimoMark || (!hasMainMark && show >= 0.55)) {
+            result.himo.push(candidate);
+        }
+
+        // 妙味候補
+        if (isValue) {
+            result.value.push(candidate);
+        }
+    });
+
+    // 重複を整理（mainの馬を himo/value から除外）
+    const mainNums = new Set(result.main.map(h => h.num));
+    result.himo = result.himo.filter(h => !mainNums.has(h.num));
+    result.value = result.value.filter(h => !mainNums.has(h.num));
+
+    // ソート（show率や妙味スコアで並べる）
+    result.main.sort((a, b) => (b.show || 0) - (a.show || 0));
+    result.himo.sort((a, b) => (b.show || 0) - (a.show || 0));
+    result.value.sort((a, b) => (b.valueScore || 0) - (a.valueScore || 0));
+
+    return result;
+}
+
+/**
+ * 注目馬サマリーのHTMLを生成
+ * @param {Object} race
+ * @param {string} analysisText
+ * @returns {string}
+ */
+function buildKeyHorseSummaryHtml(race, analysisText) {
+    if (!race || !race.horses || !race.horses.length || !analysisText) return '';
+
+    const classified = classifyKeyHorses(race, analysisText);
+    const { main, himo, value } = classified;
+
+    if (!main.length && !himo.length && !value.length) return '';
+
+    function formatHorse(h) {
+        const popText = (typeof h.pop === 'number') ? `${h.pop}人気` : '';
+        const rates = [];
+        if (typeof h.show === 'number' && h.show > 0) {
+            rates.push(`複勝 ${(h.show * 100).toFixed(1)}%`);
+        }
+        if (typeof h.win === 'number' && h.win > 0) {
+            rates.push(`単勝 ${(h.win * 100).toFixed(1)}%`);
+        }
+        const rateText = rates.join(' / ');
+
+        const markParts = [];
+        if (h.aiMarks && h.aiMarks.length) markParts.push(`AI印: ${h.aiMarks.join('')}`);
+        if (h.userMarks && h.userMarks.length) markParts.push(`自分の印: ${h.userMarks.join('')}`);
+        if (h.valueScore && h.valueScore >= 2) markParts.push('妙味あり');
+
+        const sub = [popText, rateText, markParts.join(' / ')]
+            .filter(Boolean)
+            .join(' ｜ ');
+
+        return (
+            '<div class="ai-horse-chip">' +
+                '<span class="ai-horse-chip-name">【' + h.num + '】' + h.name + '</span>' +
+                (sub ? '<span class="ai-horse-chip-sub">' + sub + '</span>' : '') +
+            '</div>'
+        );
+    }
+
+    function renderSection(title, horses, extraClass) {
+        if (!horses || !horses.length) return '';
+        const chips = horses.map(h => {
+            const base = formatHorse(h);
+            return base.replace('ai-horse-chip"', 'ai-horse-chip ' + extraClass + '"');
+        }).join('');
+        return (
+            '<div class="ai-keyhorses-section">' +
+                '<div class="ai-keyhorses-section-title">' + title + '</div>' +
+                '<div class="ai-keyhorses-list">' +
+                    chips +
+                '</div>' +
+            '</div>'
+        );
+    }
+
+    const html =
+        '<div class="ai-keyhorses-card">' +
+            '<div class="ai-keyhorses-header">' +
+                '<div class="ai-keyhorses-title">🎯 注目馬まとめ</div>' +
+                '<div class="ai-keyhorses-tagline">馬印・紐・妙味馬を一覧で確認できます</div>' +
+            '</div>' +
+            renderSection('◎○ 軸候補', main, 'ai-horse-chip-main') +
+            renderSection('紐・相手候補', himo, 'ai-horse-chip-himo') +
+            renderSection('妙味・穴候補', value, 'ai-horse-chip-value') +
+        '</div>';
+
+    return html;
+}
+
+/**
+ * 注目馬サマリーを画面に反映
+ * @param {Object} race
+ * @param {string} analysisText
+ */
+function updateKeyHorseSummary(race, analysisText) {
+    const container = document.getElementById('aiKeyHorsesSummary');
+    if (!container) return;
+
+    const html = buildKeyHorseSummaryHtml(race, analysisText);
+    container.innerHTML = html || '';
+}
+
 
 /**
  * 出走馬データをフォーマット（gemini.jsと同じロジック）
@@ -1267,11 +1572,8 @@ async function runAIAnalysisWithOpenAI(model) {
     const paddockHorses = Array.from(document.querySelectorAll('input[name="paddockEval"]:checked')).map(cb => parseInt(cb.value));
     
     try {
-        // オッズデータが読み込まれていない場合は読み込む
-        if (!currentOddsData) {
-            const raceId = selectedRace.race_number;
-            currentOddsData = await window.loadOddsData(raceId);
-        }
+        const raceId = selectedRace.race_number;
+        currentOddsData = await window.loadOddsData(raceId);
         
         // プロンプト作成
         const prompt = createPrompt(selectedRace, currentOddsData, { budget, minReturn, targetReturn, betTypes, paddockHorses });
@@ -1284,12 +1586,14 @@ async function runAIAnalysisWithOpenAI(model) {
         console.log(prompt);
         console.log('='.repeat(80));
         
-        // OpenAI APIを呼び出し
         const analysisText = await callOpenAI(model, prompt);
-        
+
+        // 注目馬サマリーを更新
+        updateKeyHorseSummary(selectedRace, analysisText);
+
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
-        
+
         // localStorageに保存
         saveAIAnalysisResult(selectedRace.race_number, {
             timestamp: Date.now(),
