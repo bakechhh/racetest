@@ -352,9 +352,6 @@ async function runAIAnalysis() {
         // レスポンスからテキストを抽出
         const analysisText = result.candidates[0].content.parts[0].text;
 
-        // 注目馬サマリーを更新
-        updateKeyHorseSummary(selectedRace, analysisText);
-
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
 
@@ -1304,9 +1301,6 @@ async function runAIAnalysisWithOpenAI(model) {
         
         const analysisText = await callOpenAI(model, prompt);
 
-        // 注目馬サマリーを更新
-        updateKeyHorseSummary(selectedRace, analysisText);
-
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
 
@@ -1342,16 +1336,15 @@ async function runAIAnalysisWithOpenAI(model) {
  * @param {string} raceId - レースID
  * @param {object} data - 保存するデータ { timestamp, result, model, params }
  */
-function saveAIAnalysisResult(raceId, analysisText) {
+function saveAIAnalysisResult(raceId, data) {
     try {
         const storageKey = 'ai_analysis_results';
         const raw = localStorage.getItem(storageKey);
         const map = raw ? JSON.parse(raw) : {};
 
-        map[raceId] = {
-            analysis: analysisText,
-            updatedAt: new Date().toISOString(),
-        };
+        // 呼び出し側から渡されたオブジェクトをそのまま保存する:
+        // { timestamp, result, model, params }
+        map[raceId] = data;
 
         localStorage.setItem(storageKey, JSON.stringify(map));
         console.log('[AI結果保存]', raceId);
@@ -1364,6 +1357,7 @@ function saveAIAnalysisResult(raceId, analysisText) {
         console.error('AI分析結果の保存に失敗:', error);
     }
 }
+
 
 
 /**
@@ -1386,9 +1380,8 @@ function autoLoadAIAnalysisResult(raceId) {
     console.log('[localStorage] Checking for saved analysis for race:', raceId);
     const savedData = loadAIAnalysisResult(raceId);
 
-    // 何も保存されていない or 古い形式で result が無い → 何もしない
-    if (!savedData || typeof savedData.result !== 'string' || savedData.result.trim() === '') {
-        console.log('[localStorage] No usable saved analysis for race:', raceId);
+    if (!savedData) {
+        console.log('[localStorage] No saved analysis for race:', raceId);
         return;
     }
 
@@ -1398,49 +1391,63 @@ function autoLoadAIAnalysisResult(raceId) {
         return;
     }
 
-    const markdown = savedData.result;
+    // --- ここでフォーマットごとにMarkdownを取り出す ---
+    let markdown = null;
+
+    // ① 文字列そのものが保存されているパターン
+    if (typeof savedData === 'string') {
+        markdown = savedData;
+    }
+    // ② 新形式: { timestamp, result, model, params }
+    else if (typeof savedData.result === 'string') {
+        markdown = savedData.result;
+    }
+    // ③ 旧形式: { analysis: '...' } など
+    else if (typeof savedData.analysis === 'string') {
+        markdown = savedData.analysis;
+    }
+
+    // どれにも当てはまらない（Markdownを取り出せない）なら静かに終了
+    if (!markdown || typeof markdown !== 'string' || markdown.trim() === '') {
+        console.log('[localStorage] No markdown string found in saved analysis for race:', raceId, savedData);
+        return;
+    }
 
     // marked がコケても画面を壊さないように try/catch
     try {
         aiResultDiv.innerHTML = marked.parse(markdown);
     } catch (e) {
         console.error('[localStorage] Error parsing markdown from saved analysis:', e);
-        // ここでもユーザー向けメッセージは出さないで静かに終わる
         return;
     }
 
-    // 保存情報（モデル・パラメータなど）があれば軽く表示（ここは今までどおり）
+    // 追加情報（モデル・パラメータ・保存日時）があれば軽く表示
     try {
-        if (savedData.timestamp && savedData.params) {
-            const savedDate = new Date(savedData.timestamp);
+        const timestamp = savedData.timestamp || savedData.updatedAt || null;
+        const params = savedData.params || null;
+        const modelText = savedData.model ? savedData.model : '不明';
+
+        if (timestamp && params) {
+            const savedDate = new Date(timestamp);
             const infoDiv = document.createElement('div');
             infoDiv.className = 'saved-info';
             infoDiv.style.cssText =
                 'background: #e3f2fd; border: 1px solid #2196f3; padding: 10px; margin-bottom: 15px; font-size: 0.9em;';
-            const modelText = savedData.model ? savedData.model : '不明';
-            const params = savedData.params;
             infoDiv.innerHTML =
                 '<strong>💾 保存された分析結果</strong><br>' +
                 '保存日時: ' + savedDate.toLocaleString('ja-JP') + '<br>' +
                 'モデル: ' + modelText + '<br>' +
                 'パラメータ: 予算' + params.budget + '円、下限' + params.minReturn + '%、目標' + params.targetReturn + '%';
+
             aiResultDiv.insertBefore(infoDiv, aiResultDiv.firstChild);
         }
     } catch (e) {
         console.warn('[localStorage] Failed to render saved info block:', e, savedData);
     }
 
-    // 注目馬まとめの再生成（失敗しても無視）
-    try {
-        if (typeof updateKeyHorseSummary === 'function' && window.selectedRace) {
-            updateKeyHorseSummary(window.selectedRace, markdown);
-        }
-    } catch (e) {
-        console.warn('[localStorage] updateKeyHorseSummary failed:', e);
-    }
-
     console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
 }
+
 
 
 
