@@ -672,12 +672,15 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - tier2: 予算の30%
 - tier3: 予算の20%
 
+### パターンD: 自由型
+- tierルールを除外したユーザー入力内容から独自計算した予算配分
+
 ## 馬券構築の思考プロセス
 
 ### 1. tierに基づく馬券選定
 - ユーザー指定の券種から、tier分けルールに従って買い目を選定
 - tier1を中心に、tier2、tier3と優先度を下げて選定
-- 各パターン（A/B/C）で予算配分比率に従って購入金額を決定
+- 各パターン（A/B/C/D）で予算配分比率に従って購入金額を決定
 
 ### 2. 複合トリガーの優先
 - 同じ馬の組み合わせで複数券種を購入
@@ -685,7 +688,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 例: tier1の◎-○で「馬連」「馬単（両方向）」「ワイド」を同時購入
 
 ### 3. 3パターンの構築
-- パターンA（tier1重視）、パターンB（バランス）、パターンC（tier2-3活用）
+- パターンA（tier1重視）、パターンB（バランス）、パターンC（tier2-3活用）、パターンD（自由型/AI馬券）
 - それぞれで予算を使い切る馬券を構築
 - ユーザーが選択できるように全パターンを出力
 
@@ -838,7 +841,13 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 （同様の形式）
 
 ---
+#### パターンD: tierルールを除外したユーザー入力内容から出力する馬券
 
+| 馬券種別 | 組み合わせ | オッズ | 購入金額 | 的中時払戻 |
+|---------|-----------|--------|----------|------------|
+| （ユーザー指定券種から選定） | （馬印の組み合わせ） | ○○倍 | ○○円 | ○○円 |
+
+---
 ### 💰 パターン比較サマリー
 
 #### 予算配分の比較
@@ -848,6 +857,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 | A: tier1重視 | ○○円(70%) | ○○円(30%) | 0円(0%) | ${budget}円 |
 | B: バランス | ○○円(60%) | ○○円(30%) | ○○円(10%) | ${budget}円 |
 | C: tier2-3活用 | ○○円(50%) | ○○円(30%) | ○○円(20%) | ${budget}円 |
+| D: 自由形 | - | - | - | ${budget}円 |
 
 #### 想定回収率と的中パターン
 
@@ -856,6 +866,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 | A | ○○% | ○○円 | ○○円 | - |
 | B | ○○% | ○○円 | ○○円 | ○○円 |
 | C | ○○% | ○○円 | ○○円 | ○○円 |
+| D | ○○% |
 
 #### 各パターンの特徴
 
@@ -876,6 +887,12 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 複合トリガー数: ○グループ
 - 軸馬: ◎と○
 - 特徴: 妙味馬・パドック評価馬を活用、高配当狙い
+
+**パターンD: 自由型**
+- 購入点数: ○点
+- 複合トリガー数: ○グループ
+- 軸馬: 妙味から判断した印
+- 特徴: 妙味馬・パドック評価馬を活用、ルールに基づかずAIが組んだ馬券
 
 **重要な構築原則**:
 - **パターンの予算配分を厳守**: 各tierの配分比率を必ず守る
@@ -922,7 +939,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 }
 
 // ====================
-// AI 注目馬サマリー生成
+// AI 注目馬サマリー生成（マーク行形式版）
 // ====================
 
 /**
@@ -938,7 +955,18 @@ function normalizeNumberText(str) {
 }
 
 /**
- * 馬印テキストから AI の馬印（◎○▲△☆）を馬番ごとに抽出
+ * 馬印テキストから AI の馬印（◎○▲△☆注）を馬番ごとに抽出
+ *
+ * 対応パターン例:
+ *   ◎ 4 ムルソー
+ *   ◎ 4番 ムルソー
+ *   ◎【4】ムルソー
+ *   - ◎ 4 ムルソー
+ *   ◎本命: 10番 ニシノティアモ
+ *   ○対抗: 8番 エコロヴァルツ
+ *   📊注1: 6番 コガネノソラ
+ *   注 3 クリノメイ
+ *
  * @param {string} marksText
  * @returns {Object.<number, Set<string>>} // { horseNum: Set(markSymbols) }
  */
@@ -947,54 +975,101 @@ function parseMarksFromText(marksText) {
     if (!marksText) return result;
 
     const lines = marksText.split(/\r?\n/);
-    const markSymbols = ['◎', '○', '▲', '△', '☆'];
 
     for (const rawLine of lines) {
-        const line = rawLine.trim();
+        let line = rawLine.trim();
         if (!line) continue;
 
-        for (const symbol of markSymbols) {
-            const idx = line.indexOf(symbol);
-            if (idx === -1) continue;
+        // 先頭の箇条書き記号（- * •）を削除
+        line = line.replace(/^[-*•]\s*/, '');
 
-            const rest = line.slice(idx + 1);
-            const numMatches = rest.match(/[0-9０-９]+/g);
-            if (!numMatches) continue;
+        // 先頭に印があるかチェック
+        // 例:
+        //   ◎本命: 10番 ニシノティアモ
+        //   ○対抗: 8番 エコロヴァルツ
+        //   📊注1: 6番 コガネノソラ
+        //   注3: 3番 クリノメイ
+        const headerMatch = line.match(/^([◎○▲△☆]|📊注[0-9]*|注[0-9]*)\s*[:：]?\s*(.+)$/);
+        if (!headerMatch) continue;
 
-            for (const numStr of numMatches) {
-                const n = parseInt(normalizeNumberText(numStr), 10);
-                if (!n || Number.isNaN(n)) continue;
-                if (!result[n]) result[n] = new Set();
-                result[n].add(symbol);
-            }
+        let symbolRaw = headerMatch[1];
+        const rest = headerMatch[2]; // ここから馬番を探す
+
+        // "📊注1" / "注1" などは全部 "注" に揃える
+        let symbol = symbolRaw;
+        if (symbolRaw.startsWith('📊注') || symbolRaw.startsWith('注')) {
+            symbol = '注';
         }
+
+        // 馬番をいくつかのパターンで探す
+        //   【10】 / 10番 / 行頭の「10」
+        let numMatch = rest.match(/【\s*([0-9０-９]+)\s*】/);      // 【10】
+        if (!numMatch) numMatch = rest.match(/([0-9０-９]+)\s*番/); // 10番
+        if (!numMatch) numMatch = rest.match(/^\s*([0-9０-９]+)/);  // "10 ニシノ..."
+
+        if (!numMatch) continue;
+
+        const num = parseInt(normalizeNumberText(numMatch[1]), 10);
+        if (!num || Number.isNaN(num)) continue;
+
+        if (!result[num]) result[num] = new Set();
+        result[num].add(symbol);
     }
 
     return result;
 }
 
 /**
- * テキスト中から「紐」扱いされた馬番を抽出
- * @param {string} text
- * @returns {Set<number>}
+ * 「🐴 全馬総評」セクションから 評価 / 参考 を馬番ごとに抽出
+ * - 「評価: ◎本命」「参考: 軸候補 / ヒモ候補」など
+ * @param {string} allHorsesText
+ * @returns {Object.<number, { evalTag: string|null, referenceTags: string[] }>}
  */
-function parseHimoFromText(text) {
-    const result = new Set();
-    if (!text) return result;
+function parseAllHorsesSection(allHorsesText) {
+    const result = {};
+    if (!allHorsesText) return result;
 
-    const lines = text.split(/\r?\n/);
+    const lines = allHorsesText.split(/\r?\n/);
+    let currentNum = null;
+
     for (const rawLine of lines) {
         const line = rawLine.trim();
         if (!line) continue;
-        if (!line.includes('紐')) continue;
 
-        const numMatches = line.match(/[0-9０-９]+/g);
-        if (!numMatches) continue;
+        // 例: "4番 ムルソー（…）" or "4 ムルソー（…）"
+        const headerMatch = line.match(/^([0-9０-９]+)\s*番?\s+/);
+        if (headerMatch) {
+            const num = parseInt(normalizeNumberText(headerMatch[1]), 10);
+            if (!Number.isNaN(num)) {
+                currentNum = num;
+                if (!result[currentNum]) {
+                    result[currentNum] = {
+                        evalTag: null,
+                        referenceTags: []
+                    };
+                }
+            }
+            continue;
+        }
 
-        for (const numStr of numMatches) {
-            const n = parseInt(normalizeNumberText(numStr), 10);
-            if (!n || Number.isNaN(n)) continue;
-            result.add(n);
+        if (!currentNum || !result[currentNum]) continue;
+
+        // 例: "評価: ◎本命"
+        const evalMatch = line.match(/^評価\s*[:：]\s*(.+)$/);
+        if (evalMatch) {
+            result[currentNum].evalTag = evalMatch[1].trim();
+            continue;
+        }
+
+        // 例: "参考: 軸候補 / 相手候補"
+        const refMatch = line.match(/^参考\s*[:：]\s*(.+)$/);
+        if (refMatch) {
+            const refs = refMatch[1]
+                .split(/[／\/]/)
+                .map(s => s.trim())
+                .filter(Boolean);
+            result[currentNum].referenceTags.push(...refs);
+            continue;
         }
     }
 
@@ -1002,146 +1077,162 @@ function parseHimoFromText(text) {
 }
 
 /**
- * AI・馬印・オッズから注目馬を分類
+ * 「🔍 データ分析詳細」セクションから
+ *  - 妙味・オッズバリュー系
+ *  - 危険な人気馬系
+ * を馬番ごとに抽出
+ * @param {string} dataAnalysisText
+ * @returns {{ valueNums: Set<number>, dangerNums: Set<number> }}
+ */
+function parseDataAnalysisSection(dataAnalysisText) {
+    const valueNums = new Set();
+    const dangerNums = new Set();
+    if (!dataAnalysisText) return { valueNums, dangerNums };
+
+    const lines = dataAnalysisText.split(/\r?\n/);
+
+    function extractHorseNumsFromLine(line) {
+        const nums = new Set();
+        if (!line) return nums;
+
+        // 先頭の「数字+番」 or 「数字+空白」
+        const head = line.match(/^\s*([0-9０-９]+)\s*番?/);
+        if (head) {
+            const n = parseInt(normalizeNumberText(head[1]), 10);
+            if (!Number.isNaN(n)) nums.add(n);
+        }
+
+        // 行中の「XX番」
+        const all = line.match(/([0-9０-９]+)\s*番/g);
+        if (all) {
+            all.forEach((match) => {
+                const m2 = match.match(/([0-9０-９]+)\s*番/);
+                if (m2) {
+                    const n = parseInt(normalizeNumberText(m2[1]), 10);
+                    if (!Number.isNaN(n)) nums.add(n);
+                }
+            });
+        }
+
+        return nums;
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const hasValueWord = /オッズバリュー|妙味|妙味馬|妙味あり|隠れた実力馬/.test(line);
+        const hasDangerWord = /危険な人気馬|過剰人気/.test(line);
+
+        if (!hasValueWord && !hasDangerWord) continue;
+
+        const nums = extractHorseNumsFromLine(line);
+        nums.forEach((n) => {
+            if (hasValueWord) valueNums.add(n);
+            if (hasDangerWord) dangerNums.add(n);
+        });
+    }
+
+    return { valueNums, dangerNums };
+}
+
+/**
+ * 各馬の情報をまとめて候補リストにする
  * @param {Object} race
  * @param {string} analysisText
- * @returns {{main: Array, himo: Array, value: Array}}
+ * @returns {Array<Object>}
  */
-function classifyKeyHorses(race, analysisText) {
+function collectKeyHorseCandidates(race, analysisText) {
     const horses = race?.horses || [];
-    const result = { main: [], himo: [], value: [] };
-
-    if (!horses.length) return result;
+    if (!horses.length || !analysisText) return [];
 
     let sections = null;
-    if (typeof extractSections === 'function' && analysisText) {
+    if (typeof extractSections === 'function') {
         sections = extractSections(analysisText);
     }
 
     const aiMarksByNum = sections?.marks ? parseMarksFromText(sections.marks) : {};
-    const himoNums = new Set();
-    if (sections?.targets) {
-        const fromTargets = parseHimoFromText(sections.targets);
-        fromTargets.forEach(n => himoNums.add(n));
-    }
-    if (sections?.summary) {
-        const fromSummary = parseHimoFromText(sections.summary);
-        fromSummary.forEach(n => himoNums.add(n));
-    }
+    const allHorsesInfo = sections?.allHorses ? parseAllHorsesSection(sections.allHorses) : {};
+    const dataInfo = sections?.dataAnalysis
+        ? parseDataAnalysisSection(sections.dataAnalysis)
+        : { valueNums: new Set(), dangerNums: new Set() };
+
+    const valueNums = dataInfo.valueNums;
+    const dangerNums = dataInfo.dangerNums;
 
     const raceId = (typeof getRaceId === 'function' && race) ? getRaceId(race) : null;
 
-    // 予測値から基準値を計算
-    let maxShow = 0;
-    let maxWin = 0;
-    horses.forEach(h => {
-        const win = h.predictions?.win_rate || 0;
-        const show = h.predictions?.show_rate || 0;
-        if (win > maxWin) maxWin = win;
-        if (show > maxShow) maxShow = show;
-    });
-
-    // 人気とAI順位の乖離で妙味を判定
-    function getValueScore(h) {
-        const pop = typeof h.popularity === 'number' ? h.popularity : null;
-        const winRank = h.predictions?.win_rate_rank || null;
-        const showRank = h.predictions?.show_rate_rank || null;
-        const placeRank = h.predictions?.place_rate_rank || null;
-
-        const ranks = [winRank, showRank, placeRank].filter(v => typeof v === 'number');
-        if (!ranks.length) return 0;
-        const bestRank = Math.min(...ranks);
-        if (!pop || !bestRank || Number.isNaN(bestRank)) return 0;
-
-        const gap = pop - bestRank; // 人気 > AI順位 でプラス
-        if (gap <= 1) return 0;
-        let score = gap;
-
-        const show = h.predictions?.show_rate || 0;
-        if (show >= 0.7) score += 1;
-        else if (show >= 0.6) score += 0.5;
-
-        return score;
-    }
+    const candidates = [];
 
     horses.forEach((horse, index) => {
         const num = horse.horse_number;
         const name = horse.horse_name || '';
         const pop = typeof horse.popularity === 'number' ? horse.popularity : null;
+        const win = horse.predictions?.win_rate ?? null;
+        const show = horse.predictions?.show_rate ?? null;
 
-        const aiMarks = aiMarksByNum[num] || new Set();
+        const aiMarksSet = aiMarksByNum[num] || new Set();
+        const aiMarks = Array.from(aiMarksSet);
 
-        // ユーザーの馬印（3スロット全部見る）
+        const allInfo = allHorsesInfo[num] || { evalTag: null, referenceTags: [] };
+        const evalTag = allInfo.evalTag || '';
+        const referenceTags = allInfo.referenceTags || [];
+
+        const hasValueMention = valueNums.has(num);
+        const isDanger = dangerNums.has(num);
+
+        const isDeleted =
+            /消し/.test(evalTag) ||
+            referenceTags.some((t) => t.includes('消し'));
+
+        // ユーザー馬印
         let userMarks = [];
         if (raceId && typeof horseMarks === 'object' && horseMarks[raceId]?.[index]) {
             const slots = horseMarks[raceId][index];
-            slots.forEach(idx => {
+            slots.forEach((idx) => {
                 const m = MARKS[idx];
                 if (m && m.symbol !== '—') userMarks.push(m.symbol);
             });
         }
 
-        const win = horse.predictions?.win_rate || 0;
-        const show = horse.predictions?.show_rate || 0;
-
-        const hasMainMark =
-            aiMarks.has('◎') ||
-            aiMarks.has('○') ||
-            userMarks.includes('◎') ||
-            userMarks.includes('○');
-
-        const hasHimoMark =
-            aiMarks.has('▲') ||
-            aiMarks.has('△') ||
-            aiMarks.has('☆') ||
-            userMarks.some(s => ['▲', '△', '☆'].includes(s)) ||
-            himoNums.has(num);
-
-        const valueScore = getValueScore(horse);
-        const isValue = valueScore >= 2;
-
-        const candidate = {
+        candidates.push({
             num,
             name,
             pop,
             win,
             show,
-            aiMarks: Array.from(aiMarks),
+            aiMarks,
+            aiMarksSet,
             userMarks,
-            valueScore
-        };
-
-        // 軸候補
-        if (hasMainMark || show >= 0.75 * (maxShow || 1)) {
-            result.main.push(candidate);
-        }
-
-        // 紐・相手候補
-        if (hasHimoMark || (!hasMainMark && show >= 0.55)) {
-            result.himo.push(candidate);
-        }
-
-        // 妙味候補
-        if (isValue) {
-            result.value.push(candidate);
-        }
+            evalTag,
+            referenceTags,
+            hasValueMention,
+            isDanger,
+            isDeleted
+        });
     });
 
-    // 重複を整理（mainの馬を himo/value から除外）
-    const mainNums = new Set(result.main.map(h => h.num));
-    result.himo = result.himo.filter(h => !mainNums.has(h.num));
-    result.value = result.value.filter(h => !mainNums.has(h.num));
-
-    // ソート（show率や妙味スコアで並べる）
-    result.main.sort((a, b) => (b.show || 0) - (a.show || 0));
-    result.himo.sort((a, b) => (b.show || 0) - (a.show || 0));
-    result.value.sort((a, b) => (b.valueScore || 0) - (a.valueScore || 0));
-
-    return result;
+    return candidates;
 }
 
 /**
  * 注目馬サマリーのHTMLを生成
+ * - 表示形式:
+ *   ◎【4】ムルソー (1人気 / 複 89.3 / 単 85.9)
+ *   〇【15】クールミラボー (5人気 / 複 78.8 / 単 74.1)
+ *   …
+ *   注【3】ハギノサステナブル (9人気 / 複 62.5 / 単 54.0)、【5】カンピオーネ (12人気 / 複 46.1 / 単 36.0)…
+ *
+ * ルール:
+ *  - ◎○▲△☆ は 馬印（AI + 自分の印）から決定
+ *  - 注 は
+ *      ・馬印で「注」(📊注/注) が付いた馬
+ *      ・または 複勝スコア >= 0.45（画面上 45 以上）かつ ◎○▲△☆ に入っていない馬
+ *      ・または 複勝 < 0.45 だが「データ分析詳細」で妙味/隠れた実力馬として言及されている馬
+ *  - 「妙味あり」だけで拾われていた 0.45 未満はここで弾く
+ *  - 重複なし
+ *  - 数値は相対評価値なので % は付けない
+ *
  * @param {Object} race
  * @param {string} analysisText
  * @returns {string}
@@ -1149,64 +1240,152 @@ function classifyKeyHorses(race, analysisText) {
 function buildKeyHorseSummaryHtml(race, analysisText) {
     if (!race || !race.horses || !race.horses.length || !analysisText) return '';
 
-    const classified = classifyKeyHorses(race, analysisText);
-    const { main, himo, value } = classified;
+    const candidates = collectKeyHorseCandidates(race, analysisText);
+    if (!candidates.length) return '';
 
-    if (!main.length && !himo.length && !value.length) return '';
+    // 馬ごとの表示ラベル生成
+    function buildLabel(c) {
+        const infoParts = [];
 
-    function formatHorse(h) {
-        const popText = (typeof h.pop === 'number') ? `${h.pop}人気` : '';
-        const rates = [];
-        if (typeof h.show === 'number' && h.show > 0) {
-            rates.push(`複勝 ${(h.show * 100).toFixed(1)}`);
+        if (typeof c.pop === 'number') {
+            infoParts.push(`${c.pop}人気`);
         }
-        if (typeof h.win === 'number' && h.win > 0) {
-            rates.push(`単勝 ${(h.win * 100).toFixed(1)}`);
+        if (typeof c.show === 'number') {
+            const v = (c.show * 100).toFixed(1).replace(/\.0$/, '');
+            infoParts.push(`複 ${v}`);
         }
-        const rateText = rates.join(' / ');
+        if (typeof c.win === 'number') {
+            const v = (c.win * 100).toFixed(1).replace(/\.0$/, '');
+            infoParts.push(`単 ${v}`);
+        }
 
-        const markParts = [];
-        if (h.aiMarks && h.aiMarks.length) markParts.push(`AI印: ${h.aiMarks.join('')}`);
-        if (h.userMarks && h.userMarks.length) markParts.push(`自分の印: ${h.userMarks.join('')}`);
-        if (h.valueScore && h.valueScore >= 2) markParts.push('妙味あり');
-
-        const sub = [popText, rateText, markParts.join(' / ')]
-            .filter(Boolean)
-            .join(' ｜ ');
-
-        return (
-            '<div class="ai-horse-chip">' +
-                '<span class="ai-horse-chip-name">【' + h.num + '】' + h.name + '</span>' +
-                (sub ? '<span class="ai-horse-chip-sub">' + sub + '</span>' : '') +
-            '</div>'
-        );
+        const infoText = infoParts.length ? ` (${infoParts.join(' / ')})` : '';
+        return `【${c.num}】${c.name}${infoText}`;
     }
 
-    function renderSection(title, horses, extraClass) {
-        if (!horses || !horses.length) return '';
-        const chips = horses.map(h => {
-            const base = formatHorse(h);
-            return base.replace('ai-horse-chip"', 'ai-horse-chip ' + extraClass + '"');
-        }).join('');
-        return (
-            '<div class="ai-keyhorses-section">' +
-                '<div class="ai-keyhorses-section-title">' + title + '</div>' +
-                '<div class="ai-keyhorses-list">' +
-                    chips +
-                '</div>' +
-            '</div>'
-        );
+    const markOrder = ['◎', '○', '▲', '△', '☆'];
+    const lineMap = {
+        '◎': [],
+        '○': [],
+        '▲': [],
+        '△': [],
+        '☆': [],
+        '注': []
+    };
+
+    const assignedMainNums = new Set();
+
+    // 1. まず ◎〜☆ を決める（馬印ベース）
+    candidates.forEach((c) => {
+        const num = c.num;
+
+        // 優先マークを決定（AI印 > 自分の印）
+        let primaryMark = null;
+        for (const m of markOrder) {
+            if (c.aiMarksSet && c.aiMarksSet.has(m)) {
+                primaryMark = m;
+                break;
+            }
+        }
+        if (!primaryMark) {
+            for (const m of markOrder) {
+                if (c.userMarks && c.userMarks.includes(m)) {
+                    primaryMark = m;
+                    break;
+                }
+            }
+        }
+
+        if (!primaryMark) {
+            return;
+        }
+
+        const label = buildLabel(c);
+        lineMap[primaryMark].push(label);
+        assignedMainNums.add(num);
+    });
+
+    // 2. 注 を決める
+    candidates.forEach((c) => {
+        const num = c.num;
+        const show = typeof c.show === 'number' ? c.show : null;
+
+        const hasAttentionMark = c.aiMarksSet && c.aiMarksSet.has('注');
+        const showOK = show !== null && show >= 0.45; // 画面上 45 以上
+        const inMain = assignedMainNums.has(num);
+
+        // 0.45 未満で「馬印の注もなく」「データ分析詳細にも妙味系で出てない」→ 要らない
+        if (!showOK && !hasAttentionMark && !c.hasValueMention) {
+            return;
+        }
+
+        // 条件:
+        //  - 馬印で「注」が付いている
+        //  - または 複勝 >= 0.45 かつ ◎〜☆ に入っていない
+        //  - または データ分析詳細で妙味/隠れた実力として明示的に言及
+        if (
+            hasAttentionMark ||
+            (!inMain && showOK) ||
+            (!inMain && c.hasValueMention)
+        ) {
+            const label = buildLabel(c);
+            lineMap['注'].push(label);
+        }
+    });
+
+    // 3. 各行の重複を削除
+    Object.keys(lineMap).forEach((key) => {
+        const seen = new Set();
+        const unique = [];
+        lineMap[key].forEach((label) => {
+            if (seen.has(label)) return;
+            seen.add(label);
+            unique.push(label);
+        });
+        lineMap[key] = unique;
+    });
+
+    // なにもなければ表示しない
+    const hasAny =
+        lineMap['◎'].length ||
+        lineMap['○'].length ||
+        lineMap['▲'].length ||
+        lineMap['△'].length ||
+        lineMap['☆'].length ||
+        lineMap['注'].length;
+
+    if (!hasAny) return '';
+
+    // 4. 行テキストを組み立て
+    const lines = [];
+
+    function pushLine(markSymbol, key) {
+        const list = lineMap[key];
+        if (!list || !list.length) return;
+        const joined = list.join('、');
+        lines.push(`${markSymbol}${joined}`);
     }
+
+    pushLine('◎', '◎');
+    pushLine('〇', '○'); // 表示は「〇」
+    pushLine('▲', '▲');
+    pushLine('△', '△');
+    pushLine('☆', '☆');
+    pushLine('注', '注');
+
+    const bodyHtml = lines
+        .map((line) => `<div class="ai-keyhorses-line">${line}</div>`)
+        .join('');
 
     const html =
         '<div class="ai-keyhorses-card">' +
             '<div class="ai-keyhorses-header">' +
                 '<div class="ai-keyhorses-title">🎯 注目馬まとめ</div>' +
-                '<div class="ai-keyhorses-tagline">馬印・紐・妙味馬を一覧で確認できます</div>' +
+                '<div class="ai-keyhorses-tagline">馬印・紐・妙味候補をまとめて確認できます</div>' +
             '</div>' +
-            renderSection('◎○ 軸候補', main, 'ai-horse-chip-main') +
-            renderSection('紐・相手候補', himo, 'ai-horse-chip-himo') +
-            renderSection('妙味・穴候補', value, 'ai-horse-chip-value') +
+            '<div class="ai-keyhorses-body">' +
+                bodyHtml +
+            '</div>' +
         '</div>';
 
     return html;
@@ -1224,6 +1403,8 @@ function updateKeyHorseSummary(race, analysisText) {
     const html = buildKeyHorseSummaryHtml(race, analysisText);
     container.innerHTML = html || '';
 }
+
+
 
 
 /**
@@ -1626,16 +1807,29 @@ async function runAIAnalysisWithOpenAI(model) {
  * @param {string} raceId - レースID
  * @param {object} data - 保存するデータ { timestamp, result, model, params }
  */
-function saveAIAnalysisResult(raceId, data) {
+function saveAIAnalysisResult(raceId, analysisText) {
     try {
-        const savedResults = JSON.parse(localStorage.getItem('ai_analysis_results') || '{}');
-        savedResults[raceId] = data;
-        localStorage.setItem('ai_analysis_results', JSON.stringify(savedResults));
-        console.log('[localStorage] Saved AI analysis result for race:', raceId);
+        const storageKey = 'ai_analysis_results';
+        const raw = localStorage.getItem(storageKey);
+        const map = raw ? JSON.parse(raw) : {};
+
+        map[raceId] = {
+            analysis: analysisText,
+            updatedAt: new Date().toISOString(),
+        };
+
+        localStorage.setItem(storageKey, JSON.stringify(map));
+        console.log('[AI結果保存]', raceId);
+
+        // レース一覧があれば再描画（AI済バッジ反映）
+        if (typeof window.displayRaces === 'function' && Array.isArray(window.filteredRaces)) {
+            window.displayRaces();
+        }
     } catch (error) {
-        console.error('[localStorage] Error saving AI analysis result:', error);
+        console.error('AI分析結果の保存に失敗:', error);
     }
 }
+
 
 /**
  * AI分析結果をlocalStorageから読み込み
@@ -1659,31 +1853,78 @@ function loadAIAnalysisResult(raceId) {
 function autoLoadAIAnalysisResult(raceId) {
     console.log('[localStorage] Checking for saved analysis for race:', raceId);
     const savedData = loadAIAnalysisResult(raceId);
-    if (savedData) {
-        const aiResultDiv = document.getElementById('aiResult');
-        if (aiResultDiv) {
-            // 保存されたMarkdownをHTMLに変換して表示
-            aiResultDiv.innerHTML = marked.parse(savedData.result);
-            
-            // 保存情報を表示
+    if (!savedData) {
+        console.log('[localStorage] No saved analysis found for race:', raceId);
+        return;
+    }
+
+    const aiResultDiv = document.getElementById('aiResult');
+    if (!aiResultDiv) {
+        console.warn('[localStorage] aiResult element not found');
+        return;
+    }
+
+    // 互換用：result / analysis / text のどれかに入っていれば採用
+    let markdown = null;
+    if (typeof savedData.result === 'string' && savedData.result.trim() !== '') {
+        markdown = savedData.result;
+    } else if (typeof savedData.analysis === 'string' && savedData.analysis.trim() !== '') {
+        markdown = savedData.analysis;
+    } else if (typeof savedData.text === 'string' && savedData.text.trim() !== '') {
+        markdown = savedData.text;
+    }
+
+    // それでも取れなかったら古い or 壊れたデータ
+    if (!markdown) {
+        console.warn('[localStorage] Saved AI analysis has no text. raceId:', raceId, savedData);
+        aiResultDiv.innerHTML =
+            '<div class="error">保存済みのAI分析結果の形式が古いため読み込めませんでした。もう一度AI分析を実行してください。</div>';
+        return;
+    }
+
+    // marked のクラッシュ防止
+    try {
+        aiResultDiv.innerHTML = marked.parse(markdown);
+    } catch (e) {
+        console.error('[localStorage] Error parsing markdown:', e, markdown);
+        aiResultDiv.innerHTML =
+            '<div class="error">保存済みのAI分析結果の読み込み中にエラーが発生しました。もう一度AI分析を実行してください。</div>';
+        return;
+    }
+
+    // 保存情報の表示（あれば）
+    try {
+        if (savedData.timestamp && savedData.params) {
             const savedDate = new Date(savedData.timestamp);
             const infoDiv = document.createElement('div');
             infoDiv.className = 'saved-info';
-            infoDiv.style.cssText = 'background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; margin-bottom: 15px; font-size: 0.9em;';
-            infoDiv.innerHTML = `
-                <strong>💾 保存された分析結果</strong><br>
-                保存日時: ${savedDate.toLocaleString('ja-JP')}<br>
-                モデル: ${savedData.model}<br>
-                パラメータ: 予算${savedData.params.budget}円、下限${savedData.params.minReturn}%、目標${savedData.params.targetReturn}%
-            `;
+            infoDiv.style.cssText =
+                'background: #e3f2fd; border: 1px solid #2196f3; padding: 10px; margin-bottom: 15px; font-size: 0.9em;';
+            const modelText = savedData.model ? savedData.model : '不明';
+            const params = savedData.params;
+            infoDiv.innerHTML =
+                '<strong>💾 保存された分析結果</strong><br>' +
+                '保存日時: ' + savedDate.toLocaleString('ja-JP') + '<br>' +
+                'モデル: ' + modelText + '<br>' +
+                'パラメータ: 予算' + params.budget + '円、下限' + params.minReturn + '%、目標' + params.targetReturn + '%';
             aiResultDiv.insertBefore(infoDiv, aiResultDiv.firstChild);
-            
-            console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
         }
-    } else {
-        console.log('[localStorage] No saved analysis found for race:', raceId);
+    } catch (e) {
+        console.warn('[localStorage] Failed to render saved info block:', e, savedData);
     }
+
+    // 注目馬まとめも、保存済みテキストから再生成
+    try {
+        if (typeof updateKeyHorseSummary === 'function' && window.selectedRace) {
+            updateKeyHorseSummary(window.selectedRace, markdown);
+        }
+    } catch (e) {
+        console.warn('[localStorage] updateKeyHorseSummary failed:', e);
+    }
+
+    console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
 }
+
 
 // グローバルに公開
 window.autoLoadAIAnalysisResult = autoLoadAIAnalysisResult;
