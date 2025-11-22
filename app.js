@@ -1334,7 +1334,7 @@ async function runAIAnalysisWithOpenAI(model) {
 /**
  * AI分析結果をlocalStorageに保存
  * @param {string} raceId - レースID
- * @param {object} data - 保存するデータ { timestamp, result, model, params }
+ * @param {object} data - { timestamp, result, model, params }
  */
 function saveAIAnalysisResult(raceId, data) {
     try {
@@ -1342,9 +1342,15 @@ function saveAIAnalysisResult(raceId, data) {
         const raw = localStorage.getItem(storageKey);
         const map = raw ? JSON.parse(raw) : {};
 
-        // 呼び出し側から渡されたオブジェクトをそのまま保存する:
-        // { timestamp, result, model, params }
-        map[raceId] = data;
+        // 呼び出し側から渡されたオブジェクトをそのまま保存
+        // すでに analysis ラップして保存していた古いデータも残るが、
+        // 読み込み側で両方に対応する
+        map[raceId] = {
+            timestamp: data.timestamp || Date.now(),
+            result: data.result,
+            model: data.model || null,
+            params: data.params || null
+        };
 
         localStorage.setItem(storageKey, JSON.stringify(map));
         console.log('[AI結果保存]', raceId);
@@ -1375,7 +1381,7 @@ function loadAIAnalysisResult(raceId) {
     }
 }
 
-// 保存済みAI結果の自動読み込み（古い形式は黙ってスキップ）
+// 保存済みAI結果の自動読み込み（古い形式も含めて広く対応）
 function autoLoadAIAnalysisResult(raceId) {
     console.log('[localStorage] Checking for saved analysis for race:', raceId);
     const savedData = loadAIAnalysisResult(raceId);
@@ -1391,29 +1397,49 @@ function autoLoadAIAnalysisResult(raceId) {
         return;
     }
 
-    // --- ここでフォーマットごとにMarkdownを取り出す ---
+    // ここでいろいろな保存形式に対応させる
+    // 1. 新形式: { timestamp, result, model, params }
+    // 2. 旧形式: { analysis: { timestamp, result, model, params }, updatedAt }
+    // 3. さらに昔: 文字列そのもの
+    let container = savedData;
+
+    // パターン2: analysis オブジェクトの中に本体がある場合
+    if (
+        container &&
+        typeof container === 'object' &&
+        container.analysis &&
+        typeof container.analysis === 'object' &&
+        !container.result
+    ) {
+        container = {
+            timestamp: container.analysis.timestamp || container.timestamp || container.updatedAt || null,
+            result: container.analysis.result,
+            model: container.analysis.model || null,
+            params: container.analysis.params || null
+        };
+    }
+
     let markdown = null;
 
-    // ① 文字列そのものが保存されているパターン
-    if (typeof savedData === 'string') {
-        markdown = savedData;
+    // パターン3: 文字列そのものが保存されている場合
+    if (typeof container === 'string') {
+        markdown = container;
     }
-    // ② 新形式: { timestamp, result, model, params }
-    else if (typeof savedData.result === 'string') {
-        markdown = savedData.result;
+    // パターン1・2: result プロパティにMarkdownが入っている場合
+    else if (container && typeof container.result === 'string') {
+        markdown = container.result;
     }
-    // ③ 旧形式: { analysis: '...' } など
-    else if (typeof savedData.analysis === 'string') {
-        markdown = savedData.analysis;
+    // 念のため: analysis が文字列な場合にも対応
+    else if (container && typeof container.analysis === 'string') {
+        markdown = container.analysis;
     }
 
-    // どれにも当てはまらない（Markdownを取り出せない）なら静かに終了
     if (!markdown || typeof markdown !== 'string' || markdown.trim() === '') {
         console.log('[localStorage] No markdown string found in saved analysis for race:', raceId, savedData);
         return;
     }
 
-    // marked がコケても画面を壊さないように try/catch
+    // marked が失敗してもアプリが落ちないようにする
     try {
         aiResultDiv.innerHTML = marked.parse(markdown);
     } catch (e) {
@@ -1423,9 +1449,9 @@ function autoLoadAIAnalysisResult(raceId) {
 
     // 追加情報（モデル・パラメータ・保存日時）があれば軽く表示
     try {
-        const timestamp = savedData.timestamp || savedData.updatedAt || null;
-        const params = savedData.params || null;
-        const modelText = savedData.model ? savedData.model : '不明';
+        const timestamp = container.timestamp || container.updatedAt || null;
+        const params = container.params || null;
+        const modelText = container.model ? container.model : '不明';
 
         if (timestamp && params) {
             const savedDate = new Date(timestamp);
@@ -1442,11 +1468,12 @@ function autoLoadAIAnalysisResult(raceId) {
             aiResultDiv.insertBefore(infoDiv, aiResultDiv.firstChild);
         }
     } catch (e) {
-        console.warn('[localStorage] Failed to render saved info block:', e, savedData);
+        console.warn('[localStorage] Failed to render saved info block:', e, container);
     }
 
     console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
 }
+
 
 
 
