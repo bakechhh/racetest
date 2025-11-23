@@ -111,7 +111,7 @@ function generateShareImage(race) {
         } else if (index === 2) {
             ctx.fillStyle = '#cd7f32'; // 銅
         } else {
-            ctx.fillStyle = index  2 === 0 ? '#f8f9fa' : 'white';
+            ctx.fillStyle = index % 2 === 0 ? '#f8f9fa' : 'white';
         }
         ctx.fillRect(innerX + 20, y, innerWidth - 40, rowHeight);
 
@@ -279,7 +279,7 @@ function generateNoteImage(race) {
     ctx.font = 'bold 18px "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif';
     ctx.textAlign = 'center';
 
-    const headers = ['順位', '馬番', '馬名', '人気', 'AI複勝', '最終指数'];
+    const headers = ['順位', '馬番', '馬名', '人気', 'AI複勝', '最終スコア'];
     headers.forEach((header, i) => {
         const centerX = colX[i] + colWidths[i] / 2;
         ctx.fillText(header, centerX, tableY + 32);
@@ -297,7 +297,7 @@ function generateNoteImage(race) {
         } else if (index === 2) {
             ctx.fillStyle = '#f9f1ea';
         } else {
-            ctx.fillStyle = index  2 === 0 ? '#ffffff' : '#f7f8fc';
+            ctx.fillStyle = index % 2 === 0 ? '#ffffff' : '#f7f8fc';
         }
         ctx.fillRect(innerX + 16, y, innerWidth - 32, rowHeight);
 
@@ -330,7 +330,7 @@ function generateNoteImage(race) {
         const pop = typeof horse.popularity === 'number' ? `${horse.popularity}人気` : '-';
         ctx.fillText(pop, colX[3] + colWidths[3] / 2, y + 44);
 
-        // AI複勝
+        // AI複勝％
         ctx.font = 'bold 22px "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif';
         const showRate = horse.predictions ? (horse.predictions.show_rate * 100).toFixed(1) : '-';
         ctx.fillStyle = '#1e9c5b';
