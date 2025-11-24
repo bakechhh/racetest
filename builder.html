@@ -161,7 +161,7 @@
 
         /* card box：上側（スクロール可） */
         .cardbox-section {
-            height: 420px;  /* 固定高さで18枠完全表示 */
+            height: 380px;  /* 印エリアと重ならない高さ */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -256,15 +256,13 @@
             flex: 1 1 auto;
             margin-top: 4px;
             padding: 4px 8px 8px;
-            overflow: hidden;  /* スクロール無効化 */
+            overflow-y: auto;  /* スクロール有効化 */
         }
 
         .cardbox-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            grid-template-rows: repeat(6, 1fr);  /* 6行均等配置 */
             gap: 3px;
-            height: 100%;
         }
 
         /* 空のプレースホルダー用カード */
@@ -1015,7 +1013,7 @@
 
                     <button class="preview-ai-button" id="aiButton" disabled>
                         <span class="icon">🤖</span>
-                        AI資金配分（Powered by Gemini）
+                        AI資金配分
                     </button>
 
                     <div class="ai-result-toast" id="aiResultToast"></div>
@@ -1070,7 +1068,7 @@
         </main>
 
         <footer class="app-footer">
-            競馬予測支援ツール - UmaAi - AI配分機能
+            競馬予測支援ツール - UmaAi- AI配分機能
         </footer>
     </div>
 
@@ -1531,15 +1529,6 @@
 
             grid.appendChild(card);
         });
-
-        // 18枠に満たない場合は空のプレースホルダーを追加
-        const totalSlots = 18;
-        const currentCount = viewList.length;
-        for (let i = currentCount; i < totalSlots; i++) {
-            const placeholder = document.createElement("div");
-            placeholder.className = "horse-card-placeholder";
-            grid.appendChild(placeholder);
-        }
     }
 
     function onHorseCardClick(horseId) {
