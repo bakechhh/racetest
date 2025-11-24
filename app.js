@@ -224,11 +224,8 @@ async function runAIAnalysis() {
     const paddockHorses = Array.from(document.querySelectorAll('input[name="paddockEval"]:checked')).map(cb => parseInt(cb.value));
 
     try {
-        // オッズデータが読み込まれていない場合は読み込む
-        if (!currentOddsData) {
-            const raceId = selectedRace.race_number;
-            currentOddsData = await window.loadOddsData(raceId);
-        }
+        const raceId = selectedRace.race_number;
+        currentOddsData = await window.loadOddsData(raceId);
 
         // プロンプト作成（パドック情報を含む）
         const prompt = createPrompt(selectedRace, currentOddsData, { budget, minReturn, targetReturn, betTypes, paddockHorses });
@@ -357,7 +354,7 @@ async function runAIAnalysis() {
 
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
-        
+
         // localStorageに保存
         saveAIAnalysisResult(selectedRace.race_number, {
             timestamp: Date.now(),
@@ -471,11 +468,11 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 複勝率50%前後で信頼性が高い
 - 軸馬または有力な相手馬として採用
 
-**複勝スコア0.48〜0.7**:
+**複勝スコア0.45〜0.7**:
 - 複勝率30〜50%程度
 - 相手馬・ヒモとして活用可能
 
-**複勝スコア0.48未満**:
+**複勝スコア0.45未満**:
 - 複勝率が低く、基本的には馬券に含めにくい
 - 特殊な条件（パドック良好など）がない限り除外
 
@@ -672,12 +669,15 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - tier2: 予算の30%
 - tier3: 予算の20%
 
+### パターンD: 自由型
+- tierルールを除外したユーザー入力内容から独自計算した予算配分
+
 ## 馬券構築の思考プロセス
 
 ### 1. tierに基づく馬券選定
 - ユーザー指定の券種から、tier分けルールに従って買い目を選定
 - tier1を中心に、tier2、tier3と優先度を下げて選定
-- 各パターン（A/B/C）で予算配分比率に従って購入金額を決定
+- 各パターン（A/B/C/D）で予算配分比率に従って購入金額を決定
 
 ### 2. 複合トリガーの優先
 - 同じ馬の組み合わせで複数券種を購入
@@ -685,7 +685,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 例: tier1の◎-○で「馬連」「馬単（両方向）」「ワイド」を同時購入
 
 ### 3. 3パターンの構築
-- パターンA（tier1重視）、パターンB（バランス）、パターンC（tier2-3活用）
+- パターンA（tier1重視）、パターンB（バランス）、パターンC（tier2-3活用）、パターンD（自由型/AI馬券）
 - それぞれで予算を使い切る馬券を構築
 - ユーザーが選択できるように全パターンを出力
 
@@ -760,7 +760,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - ☆（穴）: 1頭
 - 注（注意）: 以下の条件を満たす馬（該当馬がいる場合のみ、複数頭可）
   - パドック良好馬で上位印（◎○▲△☆）に選ばれていない馬
-  - または、複勝スコア0.48以上で上位印に選ばれていない馬
+  - または、複勝スコア0.45以上で上位印に選ばれていない馬
 
 **印の付け方**:
 - ◎ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
@@ -769,7 +769,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - △ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
 - ☆ ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）
 - 🐴注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※パドック良好
-- 📊注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※スコア0.48以上
+- 📊注 ○番 馬名（単勝○位/連対○位/複勝○位、複勝スコア○.○○）※スコア0.45以上
 
 **印の意味**:
 - **◎本命**: 3つの順位で総合的に最上位、最も信頼できる1頭
@@ -778,7 +778,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - **△連下**: 2～3着候補、いずれかの順位で上位
 - **☆穴**: 総合5番手、特定の指標で光るものがある
 - **🐴注**: パドック良好馬で上位印に選ばれていない馬
-- **📊注**: 複勝スコア0.48以上で上位印に選ばれていない馬
+- **📊注**: 複勝スコア0.45以上で上位印に選ばれていない馬
 
 ### 🐴 全馬総評
 
@@ -838,7 +838,13 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 （同様の形式）
 
 ---
+#### パターンD: tierルールを除外したユーザー入力内容から出力する馬券
 
+| 馬券種別 | 組み合わせ | オッズ | 購入金額 | 的中時払戻 |
+|---------|-----------|--------|----------|------------|
+| （ユーザー指定券種から選定） | （馬印の組み合わせ） | ○○倍 | ○○円 | ○○円 |
+
+---
 ### 💰 パターン比較サマリー
 
 #### 予算配分の比較
@@ -848,6 +854,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 | A: tier1重視 | ○○円(70%) | ○○円(30%) | 0円(0%) | ${budget}円 |
 | B: バランス | ○○円(60%) | ○○円(30%) | ○○円(10%) | ${budget}円 |
 | C: tier2-3活用 | ○○円(50%) | ○○円(30%) | ○○円(20%) | ${budget}円 |
+| D: 自由形 | - | - | - | ${budget}円 |
 
 #### 想定回収率と的中パターン
 
@@ -856,6 +863,7 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 | A | ○○% | ○○円 | ○○円 | - |
 | B | ○○% | ○○円 | ○○円 | ○○円 |
 | C | ○○% | ○○円 | ○○円 | ○○円 |
+| D | ○○% |
 
 #### 各パターンの特徴
 
@@ -876,6 +884,12 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - 複合トリガー数: ○グループ
 - 軸馬: ◎と○
 - 特徴: 妙味馬・パドック評価馬を活用、高配当狙い
+
+**パターンD: 自由型**
+- 購入点数: ○点
+- 複合トリガー数: ○グループ
+- 軸馬: 妙味から判断した印
+- 特徴: 妙味馬・パドック評価馬を活用、ルールに基づかずAIが組んだ馬券
 
 **重要な構築原則**:
 - **パターンの予算配分を厳守**: 各tierの配分比率を必ず守る
@@ -920,6 +934,10 @@ ${paddockHorses && paddockHorses.length > 0 ? `
 - ユーザーの目標に最適な組み合わせを考案すること
 `;
 }
+
+
+
+
 
 /**
  * 出走馬データをフォーマット（gemini.jsと同じロジック）
@@ -1267,11 +1285,8 @@ async function runAIAnalysisWithOpenAI(model) {
     const paddockHorses = Array.from(document.querySelectorAll('input[name="paddockEval"]:checked')).map(cb => parseInt(cb.value));
     
     try {
-        // オッズデータが読み込まれていない場合は読み込む
-        if (!currentOddsData) {
-            const raceId = selectedRace.race_number;
-            currentOddsData = await window.loadOddsData(raceId);
-        }
+        const raceId = selectedRace.race_number;
+        currentOddsData = await window.loadOddsData(raceId);
         
         // プロンプト作成
         const prompt = createPrompt(selectedRace, currentOddsData, { budget, minReturn, targetReturn, betTypes, paddockHorses });
@@ -1284,12 +1299,11 @@ async function runAIAnalysisWithOpenAI(model) {
         console.log(prompt);
         console.log('='.repeat(80));
         
-        // OpenAI APIを呼び出し
         const analysisText = await callOpenAI(model, prompt);
-        
+
         // marked.jsを使ってMarkdownをHTMLに変換
         aiResultDiv.innerHTML = marked.parse(analysisText);
-        
+
         // localStorageに保存
         saveAIAnalysisResult(selectedRace.race_number, {
             timestamp: Date.now(),
@@ -1320,18 +1334,37 @@ async function runAIAnalysisWithOpenAI(model) {
 /**
  * AI分析結果をlocalStorageに保存
  * @param {string} raceId - レースID
- * @param {object} data - 保存するデータ { timestamp, result, model, params }
+ * @param {object} data - { timestamp, result, model, params }
  */
 function saveAIAnalysisResult(raceId, data) {
     try {
-        const savedResults = JSON.parse(localStorage.getItem('ai_analysis_results') || '{}');
-        savedResults[raceId] = data;
-        localStorage.setItem('ai_analysis_results', JSON.stringify(savedResults));
-        console.log('[localStorage] Saved AI analysis result for race:', raceId);
+        const storageKey = 'ai_analysis_results';
+        const raw = localStorage.getItem(storageKey);
+        const map = raw ? JSON.parse(raw) : {};
+
+        // 呼び出し側から渡されたオブジェクトをそのまま保存
+        // すでに analysis ラップして保存していた古いデータも残るが、
+        // 読み込み側で両方に対応する
+        map[raceId] = {
+            timestamp: data.timestamp || Date.now(),
+            result: data.result,
+            model: data.model || null,
+            params: data.params || null
+        };
+
+        localStorage.setItem(storageKey, JSON.stringify(map));
+        console.log('[AI結果保存]', raceId);
+
+        // レース一覧があれば再描画（AI済バッジ反映）
+        if (typeof window.displayRaces === 'function' && Array.isArray(window.filteredRaces)) {
+            window.displayRaces();
+        }
     } catch (error) {
-        console.error('[localStorage] Error saving AI analysis result:', error);
+        console.error('AI分析結果の保存に失敗:', error);
     }
 }
+
+
 
 /**
  * AI分析結果をlocalStorageから読み込み
@@ -1348,38 +1381,102 @@ function loadAIAnalysisResult(raceId) {
     }
 }
 
-/**
- * レース選択時に保存されたAI分析結果を自動読み込み
- * @param {string} raceId - レースID
- */
+// 保存済みAI結果の自動読み込み（古い形式も含めて広く対応）
 function autoLoadAIAnalysisResult(raceId) {
     console.log('[localStorage] Checking for saved analysis for race:', raceId);
     const savedData = loadAIAnalysisResult(raceId);
-    if (savedData) {
-        const aiResultDiv = document.getElementById('aiResult');
-        if (aiResultDiv) {
-            // 保存されたMarkdownをHTMLに変換して表示
-            aiResultDiv.innerHTML = marked.parse(savedData.result);
-            
-            // 保存情報を表示
-            const savedDate = new Date(savedData.timestamp);
+
+    if (!savedData) {
+        console.log('[localStorage] No saved analysis for race:', raceId);
+        return;
+    }
+
+    const aiResultDiv = document.getElementById('aiResult');
+    if (!aiResultDiv) {
+        console.warn('[localStorage] aiResult element not found');
+        return;
+    }
+
+    // ここでいろいろな保存形式に対応させる
+    // 1. 新形式: { timestamp, result, model, params }
+    // 2. 旧形式: { analysis: { timestamp, result, model, params }, updatedAt }
+    // 3. さらに昔: 文字列そのもの
+    let container = savedData;
+
+    // パターン2: analysis オブジェクトの中に本体がある場合
+    if (
+        container &&
+        typeof container === 'object' &&
+        container.analysis &&
+        typeof container.analysis === 'object' &&
+        !container.result
+    ) {
+        container = {
+            timestamp: container.analysis.timestamp || container.timestamp || container.updatedAt || null,
+            result: container.analysis.result,
+            model: container.analysis.model || null,
+            params: container.analysis.params || null
+        };
+    }
+
+    let markdown = null;
+
+    // パターン3: 文字列そのものが保存されている場合
+    if (typeof container === 'string') {
+        markdown = container;
+    }
+    // パターン1・2: result プロパティにMarkdownが入っている場合
+    else if (container && typeof container.result === 'string') {
+        markdown = container.result;
+    }
+    // 念のため: analysis が文字列な場合にも対応
+    else if (container && typeof container.analysis === 'string') {
+        markdown = container.analysis;
+    }
+
+    if (!markdown || typeof markdown !== 'string' || markdown.trim() === '') {
+        console.log('[localStorage] No markdown string found in saved analysis for race:', raceId, savedData);
+        return;
+    }
+
+    // marked が失敗してもアプリが落ちないようにする
+    try {
+        aiResultDiv.innerHTML = marked.parse(markdown);
+    } catch (e) {
+        console.error('[localStorage] Error parsing markdown from saved analysis:', e);
+        return;
+    }
+
+    // 追加情報（モデル・パラメータ・保存日時）があれば軽く表示
+    try {
+        const timestamp = container.timestamp || container.updatedAt || null;
+        const params = container.params || null;
+        const modelText = container.model ? container.model : '不明';
+
+        if (timestamp && params) {
+            const savedDate = new Date(timestamp);
             const infoDiv = document.createElement('div');
             infoDiv.className = 'saved-info';
-            infoDiv.style.cssText = 'background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; margin-bottom: 15px; font-size: 0.9em;';
-            infoDiv.innerHTML = `
-                <strong>💾 保存された分析結果</strong><br>
-                保存日時: ${savedDate.toLocaleString('ja-JP')}<br>
-                モデル: ${savedData.model}<br>
-                パラメータ: 予算${savedData.params.budget}円、下限${savedData.params.minReturn}%、目標${savedData.params.targetReturn}%
-            `;
+            infoDiv.style.cssText =
+                'background: #e3f2fd; border: 1px solid #2196f3; padding: 10px; margin-bottom: 15px; font-size: 0.9em;';
+            infoDiv.innerHTML =
+                '<strong>💾 保存された分析結果</strong><br>' +
+                '保存日時: ' + savedDate.toLocaleString('ja-JP') + '<br>' +
+                'モデル: ' + modelText + '<br>' +
+                'パラメータ: 予算' + params.budget + '円、下限' + params.minReturn + '%、目標' + params.targetReturn + '%';
+
             aiResultDiv.insertBefore(infoDiv, aiResultDiv.firstChild);
-            
-            console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
         }
-    } else {
-        console.log('[localStorage] No saved analysis found for race:', raceId);
+    } catch (e) {
+        console.warn('[localStorage] Failed to render saved info block:', e, container);
     }
+
+    console.log('[localStorage] Loaded saved AI analysis result for race:', raceId);
 }
+
+
+
+
 
 // グローバルに公開
 window.autoLoadAIAnalysisResult = autoLoadAIAnalysisResult;

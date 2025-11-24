@@ -889,6 +889,61 @@
         body.dark-mode .past-races-table tr:nth-child(even) {
             background: #1a1a2e;
         }
+        .quick-preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .quick-preset-btn {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid #667eea;
+            background: #ffffff;
+            color: #667eea;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-preset-btn:hover {
+            background: rgba(102, 126, 234, 0.07);
+        }
+
+        .quick-preset-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            border-color: #667eea;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.35);
+        }
+
+        .quick-preset-btn.recommended {
+            position: relative;
+        }
+
+        .quick-preset-btn.recommended::after {
+            content: '推奨';
+            position: absolute;
+            top: -8px;
+            right: -2px;
+            padding: 2px 5px;
+            border-radius: 999px;
+            background: #ff9800;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .quick-preset-recommend-label {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #666666;
+        }
+
     </style>
 </head>
 <body>
@@ -1415,6 +1470,42 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                             </div>
                         </div>
                     </div>
+                    <!-- クイックプリセット -->
+                    <div class="form-section">
+                        <label class="form-label">
+                            <span class="label-icon">⚙️</span>
+                            <span class="label-text">クイック設定</span>
+                        </label>
+                        <div class="quick-preset-buttons">
+                            <button
+                                type="button"
+                                class="quick-preset-btn"
+                                data-type="honmei"
+                                onclick="applyQuickPreset('honmei')"
+                            >
+                                本命重視
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-preset-btn"
+                                data-type="ana"
+                                onclick="applyQuickPreset('ana')"
+                            >
+                                穴狙い
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-preset-btn"
+                                data-type="sanren"
+                                onclick="applyQuickPreset('sanren')"
+                            >
+                                3連系メイン
+                            </button>
+                        </div>
+                        <div id="quickPresetRecommendLabel" class="quick-preset-recommend-label">
+                            レースを選ぶと、ここにおすすめの設定が表示されます
+                        </div>
+                    </div>
 
                     <!-- パドック評価 -->
                     <div class="form-section">
@@ -1476,6 +1567,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                     </div>
                 </div>
 
+                <!-- AI注目馬サマリー -->
+                <div id="aiKeyHorsesSummary" class="ai-keyhorses-summary">
+                    <!-- AI注目馬の要約がここに表示されます -->
+                </div>
+
                 <!-- 分析結果 -->
                 <div class="ai-result-modern" id="aiResult">
                     <!-- AI分析結果がここに表示されます -->
@@ -1490,6 +1586,95 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 padding: 20px;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
                 display: none;
+            }
+
+            .ai-keyhorses-summary {
+                margin-top: 15px;
+                margin-bottom: 16px;
+            }
+
+            .ai-keyhorses-card {
+                background: #f9fafb;
+                border-radius: 12px;
+                padding: 12px 14px;
+                border: 1px solid #e5e7eb;
+                font-size: 13px;
+            }
+
+            .ai-keyhorses-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+            }
+
+            .ai-keyhorses-title {
+                font-weight: 700;
+                color: #374151;
+                font-size: 14px;
+            }
+
+            .ai-keyhorses-tagline {
+                font-size: 11px;
+                color: #6b7280;
+            }
+
+            .ai-keyhorses-section {
+                margin-top: 6px;
+            }
+
+            .ai-keyhorses-section-title {
+                font-size: 12px;
+                font-weight: 600;
+                color: #4b5563;
+                margin-bottom: 2px;
+            }
+
+            .ai-keyhorses-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .ai-horse-chip {
+                border-radius: 9999px;
+                padding: 3px 8px;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                font-size: 11px;
+                color: #111827;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                max-width: 100%;
+            }
+
+            .ai-horse-chip-main {
+                border-color: #6366f1;
+                background: #eef2ff;
+            }
+
+            .ai-horse-chip-himo {
+                border-color: #10b981;
+                background: #ecfdf5;
+            }
+
+            .ai-horse-chip-value {
+                border-color: #f97316;
+                background: #fff7ed;
+            }
+
+            .ai-horse-chip-danger {
+                border-color: #ef4444;
+                background: #fef2f2;
+            }
+
+            .ai-horse-chip-name {
+                font-weight: 600;
+            }
+
+            .ai-horse-chip-sub {
+                color: #6b7280;
             }
 
             .ai-view.active {
@@ -1777,6 +1962,20 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
 
             .ai-result-modern:empty {
                 display: none;
+            }
+            .ai-done-badge {
+                display: inline-block;
+                margin-left: 4px;
+                padding: 2px 6px;
+                border-radius: 999px;
+                background: #4caf50;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 600;
+            }
+
+            body.dark-mode .ai-done-badge {
+                background: #43a047;
             }
 
             /* レスポンシブ対応 */
@@ -2543,6 +2742,58 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             return stars;
         }
 
+        function suggestQuickPresetForRace(race) {
+            let level = 0;
+            if (typeof race.buy_level === 'number') {
+                level = race.buy_level;
+            } else if (typeof getRaceBuyLevel === 'function') {
+                level = getRaceBuyLevel(race);
+            }
+
+            // レベルからざっくりおすすめを決定
+            if (level >= 4.0) {
+                return 'sanren';   // 買いレベル高い → 3連系まで視野
+            } else if (level >= 2.5) {
+                return 'honmei';   // 中〜上 → 本命中心に厚め
+            } else if (level >= 1.5) {
+                return 'ana';      // やや妙味寄り
+            } else {
+                return null;       // あまり積極的には攻めない
+            }
+        }
+
+        function highlightRecommendedQuickPreset(race) {
+            const recommendType = suggestQuickPresetForRace(race);
+
+            // いったんリセット
+            document.querySelectorAll('.quick-preset-btn').forEach((btn) => {
+                btn.classList.remove('recommended');
+            });
+
+            const label = document.getElementById('quickPresetRecommendLabel');
+            if (label) {
+                if (!recommendType) {
+                    label.textContent = 'このレースは控えめな勝負をおすすめします';
+                } else if (recommendType === 'honmei') {
+                    label.textContent = 'このレースは「本命重視」設定がおすすめです';
+                } else if (recommendType === 'ana') {
+                    label.textContent = 'このレースは「穴狙い」設定がおすすめです';
+                } else if (recommendType === 'sanren') {
+                    label.textContent = 'このレースは「3連系メイン」設定がおすすめです';
+                }
+            }
+
+            if (!recommendType) {
+                return;
+            }
+
+            const btn = document.querySelector(
+                '.quick-preset-btn[data-type="' + recommendType + '"]'
+            );
+            if (btn) {
+                btn.classList.add('recommended');
+            }
+        }
 
         // レース一覧を表示
         function displayRaces() {
@@ -2571,9 +2822,21 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 // 買いレース度（0〜5）と★表示
                 const buyLevel = getRaceBuyLevel(race);
                 const buyLevelStars = renderBuyLevelStars(buyLevel);
-
-                // race オブジェクトにも保持しておく（他で使いたいとき用）
                 race.buy_level = buyLevel;
+
+                // AI済バッジ判定
+                let hasAI = false;
+                try {
+                    if (typeof loadAIAnalysisResult === 'function') {
+                        const saved = loadAIAnalysisResult(race.race_number || raceId);
+                        hasAI = !!saved;
+                    }
+                } catch (e) {
+                    console.warn('AI済バッジ判定中のエラー:', e);
+                }
+                const aiBadgeHtml = hasAI
+                    ? '<span class="ai-done-badge">AI済</span>'
+                    : '';
 
                 card.innerHTML = `
                     <div class="race-header">
@@ -2599,7 +2862,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                     </div>
                     <div class="race-name">${race.race_name}</div>
                     <div class="race-details">
-                        ${race.race_class} | ${race.num_horses}頭立て<br>
+                        ${race.race_class} | ${race.num_horses}頭立て ${aiBadgeHtml}<br>
                         <span style="font-size: 13px; color: #ff9800; font-weight: 600;">
                             買いレース度: ${buyLevelStars}
                         </span>
@@ -2609,6 +2872,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 raceList.appendChild(card);
             });
         }
+
 
         // 表示モード切り替え
         function changeViewMode(mode) {
@@ -2651,6 +2915,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
         async function showHorses(race, cardElement) {
             selectedRace = race;
             window.selectedRace = race;  // グローバルに公開
+
+            // ★ ここでおすすめプリセットをハイライト
+            if (typeof highlightRecommendedQuickPreset === 'function') {
+                highlightRecommendedQuickPreset(race);
+            }
 
             // 開催場所切り替えと前/次レースボタンを初期化
             initRaceNavigation(race);
@@ -4448,6 +4717,46 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 option.textContent = preset.name;
                 select.appendChild(option);
             });
+        }
+        function applyQuickPreset(type) {
+            const budgetInput = document.getElementById('aiBudget');
+            const minReturnInput = document.getElementById('aiMinReturn');
+            const targetReturnInput = document.getElementById('aiTargetReturn');
+            const betTypeCheckboxes = document.querySelectorAll('input[name="betType"]');
+
+            function setBetTypes(enabledTypes) {
+                betTypeCheckboxes.forEach((cb) => {
+                    cb.checked = enabledTypes.includes(cb.value);
+                });
+            }
+
+            if (type === 'honmei') {
+                if (budgetInput) budgetInput.value = 2000;
+                if (minReturnInput) minReturnInput.value = 110;
+                if (targetReturnInput) targetReturnInput.value = 150;
+                setBetTypes(['単勝', '馬連', 'ワイド']);
+            } else if (type === 'ana') {
+                if (budgetInput) budgetInput.value = 1500;
+                if (minReturnInput) minReturnInput.value = 130;
+                if (targetReturnInput) targetReturnInput.value = 200;
+                setBetTypes(['馬連', '馬単', 'ワイド']);
+            } else if (type === 'sanren') {
+                if (budgetInput) budgetInput.value = 2000;
+                if (minReturnInput) minReturnInput.value = 150;
+                if (targetReturnInput) targetReturnInput.value = 250;
+                setBetTypes(['3連複', '3連単']);
+            }
+
+            // ボタンの見た目更新（選択中）
+            document.querySelectorAll('.quick-preset-btn').forEach((btn) => {
+                btn.classList.remove('active');
+            });
+            const current = document.querySelector(
+                '.quick-preset-btn[data-type="' + type + '"]'
+            );
+            if (current) {
+                current.classList.add('active');
+            }
         }
 
         function getPresets() {
