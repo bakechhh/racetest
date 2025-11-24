@@ -864,7 +864,7 @@
         <header class="app-header">
             <div class="app-header-title">馬印カードビルダー＋AI配分プレビュー</div>
             <div class="app-header-sub">
-                レースデータ読み込み → 印付け → AI資金配分
+                Supabaseからレースデータ読み込み → 印付け → AI資金配分
             </div>
         </header>
 
@@ -878,8 +878,8 @@
             <div class="config-row">
                 <label class="config-label">AIモデル:</label>
                 <select id="geminiModel" class="config-select">
-                  <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (高速)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (高精度・低速)</option>
+                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (高速)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (高精度)</option>
                 </select>
             </div>
             <div class="config-row">
@@ -981,16 +981,56 @@
                                 <option value="sanrentan">三連単</option>
                             </select>
                         </div>
+
                         <div class="preview-form-row">
-                            <label for="fromMarkSelect">印（軸）</label>
-                            <select id="fromMarkSelect">
-                                <!-- JSで印リストから埋め込む -->
-                            </select>
+                            <label>生成方式</label>
+                            <div class="form-radio-group">
+                                <label>
+                                    <input type="radio" name="genType" value="flow" checked>
+                                    流し
+                                </label>
+                                <label>
+                                    <input type="radio" name="genType" value="formation">
+                                    フォーメーション
+                                </label>
+                            </div>
                         </div>
-                        <div class="preview-form-row">
-                            <label>印（相手）</label>
-                            <div class="to-marks" id="toMarksContainer">
-                                <!-- JSでチェックボックスを描画 -->
+
+                        <!-- 流し設定 -->
+                        <div id="flowSettings">
+                            <div class="preview-form-row">
+                                <label for="fromMarkSelect">印（軸）</label>
+                                <select id="fromMarkSelect">
+                                    <!-- JSで印リストから埋め込む -->
+                                </select>
+                            </div>
+                            <div class="preview-form-row">
+                                <label>印（相手）</label>
+                                <div class="to-marks" id="toMarksContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- フォーメーション設定 -->
+                        <div id="formationSettings" style="display:none;">
+                            <div class="preview-form-row">
+                                <label>1着/1頭目</label>
+                                <div class="to-marks" id="formation1stContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                            <div class="preview-form-row">
+                                <label>2着/2頭目</label>
+                                <div class="to-marks" id="formation2ndContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                            <div class="preview-form-row" id="formation3rdRow" style="display:none;">
+                                <label>3着/3頭目</label>
+                                <div class="to-marks" id="formation3rdContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1013,7 +1053,7 @@
 
                     <button class="preview-ai-button" id="aiButton" disabled>
                         <span class="icon">🤖</span>
-                        AI資金配分
+                        AI資金配分（Powered by Gemini）
                     </button>
 
                     <div class="ai-result-toast" id="aiResultToast"></div>
@@ -1068,7 +1108,7 @@
         </main>
 
         <footer class="app-footer">
-            競馬予測支援ツール - UmaAi- AI配分機能
+            競馬予測支援ツール - Supabase連携・AI配分機能搭載
         </footer>
     </div>
 
@@ -1557,7 +1597,11 @@
     function setupPreviewControls() {
         const fromSel = document.getElementById("fromMarkSelect");
         const toContainer = document.getElementById("toMarksContainer");
+        const formation1st = document.getElementById("formation1stContainer");
+        const formation2nd = document.getElementById("formation2ndContainer");
+        const formation3rd = document.getElementById("formation3rdContainer");
 
+        // 流し用コントロール
         fromSel.innerHTML = "";
         marks.forEach(m => {
             const opt = document.createElement("option");
@@ -1591,6 +1635,26 @@
             wrap.appendChild(checkbox);
             wrap.appendChild(text);
             toContainer.appendChild(wrap);
+        });
+
+        // フォーメーション用コントロール
+        [formation1st, formation2nd, formation3rd].forEach(container => {
+            container.innerHTML = "";
+            marks.forEach(m => {
+                const wrap = document.createElement("label");
+                wrap.className = "to-mark-chip";
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = m.id;
+
+                const text = document.createElement("span");
+                text.textContent = m.symbol;
+
+                wrap.appendChild(checkbox);
+                wrap.appendChild(text);
+                container.appendChild(wrap);
+            });
         });
     }
 
@@ -1686,6 +1750,117 @@
         generatedBetType = betType;
 
         renderComboResult();
+    }
+
+    // フォーメーション買い目生成
+    function generateFormationCombos() {
+        const betType = document.getElementById("betTypeSelect").value;
+
+        // 各フレームの選択印を取得
+        const pos1Marks = Array.from(document.querySelectorAll("#formation1stContainer input:checked")).map(cb => cb.value);
+        const pos2Marks = Array.from(document.querySelectorAll("#formation2ndContainer input:checked")).map(cb => cb.value);
+        const pos3Marks = Array.from(document.querySelectorAll("#formation3rdContainer input:checked")).map(cb => cb.value);
+
+        // 印から馬番号を取得
+        const pos1Horses = getHorseIdsByMarkIds(pos1Marks);
+        const pos2Horses = getHorseIdsByMarkIds(pos2Marks);
+        const pos3Horses = getHorseIdsByMarkIds(pos3Marks);
+
+        // 検証
+        if (betType === "tanshou" || betType === "fukushou") {
+            if (pos1Horses.length === 0) {
+                showToast("1頭目の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "umaren" || betType === "wide") {
+            if (pos1Horses.length + pos2Horses.length < 2) {
+                showToast("合計2頭以上選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "umatan") {
+            if (pos1Horses.length === 0 || pos2Horses.length === 0) {
+                showToast("1着と2着の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "sanrenpuku" || betType === "sanrentan") {
+            if (pos1Horses.length === 0 || pos2Horses.length === 0 || pos3Horses.length === 0) {
+                showToast("各着順の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        }
+
+        const combosSet = new Set();
+
+        switch(betType) {
+            case "tanshou":
+            case "fukushou":
+                pos1Horses.forEach(h => combosSet.add(String(h)));
+                break;
+
+            case "umaren":
+            case "wide":
+                // フォーメーション形式
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        if (h1 !== h2) {
+                            const sorted = [h1, h2].sort((a,b) => a - b);
+                            combosSet.add(sorted.join("-"));
+                        }
+                    });
+                });
+                break;
+
+            case "umatan":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        if (h1 !== h2) {
+                            combosSet.add(h1 + "-" + h2);
+                        }
+                    });
+                });
+                break;
+
+            case "sanrenpuku":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        pos3Horses.forEach(h3 => {
+                            if (h1 !== h2 && h2 !== h3 && h1 !== h3) {
+                                const sorted = [h1, h2, h3].sort((a,b) => a - b);
+                                combosSet.add(sorted.join("-"));
+                            }
+                        });
+                    });
+                });
+                break;
+
+            case "sanrentan":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        pos3Horses.forEach(h3 => {
+                            if (h1 !== h2 && h2 !== h3 && h1 !== h3) {
+                                combosSet.add(h1 + "-" + h2 + "-" + h3);
+                            }
+                        });
+                    });
+                });
+                break;
+        }
+
+        generatedBetType = betType;
+        generatedCombos = Array.from(combosSet).map(key => {
+            return key.split("-").map(n => parseInt(n, 10));
+        });
+
+        renderComboResult();
+        showToast(`フォーメーション：${generatedCombos.length}点生成しました`, "success");
     }
 
     function renderComboResult() {
@@ -1999,7 +2174,10 @@ ${JSON.stringify(markData, null, 2)}
 配分の条件：
 1. 各買い目は最低100円、100円単位で配分
 2. 合計金額は必ず予算${budget}円ちょうどになること
-3. トリガミ（的中しても投資総額を回収できない）を極力回避すること
+3. トリガミ（的中しても投資総額を回収できない）を極力回避すること。
+-またトリガミは予算合計で考慮すること。単体馬券では計算はするがトータルで見る。
+-どこ当たってもとりあえず130％は回収できる。くらいが理想
+4. 上位印の馬券で回収率を最大限した上で、抑えや穴からの馬券で夢も見る
 
 配分の方針：
 - 馬印配置とオッズを総合的に分析して、ユーザーの意図を理解した配分を行う
@@ -2668,8 +2846,37 @@ ${JSON.stringify(markData, null, 2)}
             setupToolbar();
             setupCardboxControls();
 
+            // 生成方式切り替え
+            document.querySelectorAll('input[name="genType"]').forEach(radio => {
+                radio.addEventListener("change", e => {
+                    const isFlow = e.target.value === "flow";
+                    document.getElementById("flowSettings").style.display = isFlow ? "block" : "none";
+                    document.getElementById("formationSettings").style.display = isFlow ? "none" : "block";
+
+                    // 券種により3着表示を制御
+                    const betType = document.getElementById("betTypeSelect").value;
+                    const needs3rd = betType === "sanrenpuku" || betType === "sanrentan";
+                    document.getElementById("formation3rdRow").style.display =
+                        !isFlow && needs3rd ? "flex" : "none";
+                });
+            });
+
+            // 券種変更時の3着表示制御
+            document.getElementById("betTypeSelect").addEventListener("change", e => {
+                const betType = e.target.value;
+                const isFormation = document.querySelector('input[name="genType"]:checked')?.value === "formation";
+                const needs3rd = betType === "sanrenpuku" || betType === "sanrentan";
+                document.getElementById("formation3rdRow").style.display =
+                    isFormation && needs3rd ? "flex" : "none";
+            });
+
             document.getElementById("generateButton").addEventListener("click", () => {
-                generateCombosFromMarks();
+                const genType = document.querySelector('input[name="genType"]:checked')?.value || "flow";
+                if (genType === "flow") {
+                    generateCombosFromMarks();
+                } else {
+                    generateFormationCombos();
+                }
             });
 
             document.getElementById("addToBetListButton").addEventListener("click", () => {
