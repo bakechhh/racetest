@@ -944,6 +944,101 @@
             color: #666666;
         }
 
+        /* 刷新されたテーブルデザイン */
+        .modern-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 4px; /* 行の間に隙間を作る */
+            font-size: 13px;
+        }
+
+        .modern-table th {
+            background: #f1f5f9;
+            color: #64748b;
+            font-weight: 600;
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .modern-table td {
+            padding: 12px 8px;
+            text-align: center;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modern-table tr:hover td {
+            background-color: #f8fafc !important; /* ホバー時の色 */
+        }
+
+        /* 左端の判定カラム（結論） */
+        .status-cell {
+            font-weight: bold;
+            font-size: 14px;
+            min-width: 80px;
+            border-left: 4px solid transparent; /* 左側の色線用 */
+            border-radius: 6px 0 0 6px;
+        }
+
+        /* 右端のセル（角丸用） */
+        .modern-table td:last-child {
+            border-radius: 0 6px 6px 0;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        /* ステータス別のスタイル */
+        .status-axis { background-color: #fffbeb !important; border-left-color: #fbbf24 !important; color: #b45309; }
+        .status-value { background-color: #fef2f2 !important; border-left-color: #ef4444 !important; color: #b91c1c; }
+        .status-ability { background-color: #eff6ff !important; border-left-color: #3b82f6 !important; color: #1d4ed8; }
+        .status-safe { background-color: #f8fafc !important; border-left-color: #94a3b8 !important; color: #64748b; }
+        .status-delete { background-color: #f1f5f9 !important; border-left-color: #cbd5e1 !important; color: #94a3b8; }
+
+        /* バッジエリア（横並び） */
+        .factor-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: flex-start; /* 左寄せ */
+            max-width: 200px; /* 横幅制限 */
+        }
+
+        .factor-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        /* ランク順位のスタイル */
+        .rank-badge {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+        .rank-1 { background-color: #fbbf24; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .rank-2 { background-color: #94a3b8; }
+        .rank-3 { background-color: #b45309; }
+        .rank-other { background-color: #e2e8f0; color: #64748b; }
+
+        /* スコア強調 */
+        .score-high { color: #ef4444; font-weight: bold; }
+        .score-mid { color: #f59e0b; font-weight: bold; }
+        .score-low { color: #94a3b8; }
+
     </style>
 </head>
 <body>
@@ -2287,6 +2382,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
         );
     </script>
     <script src="data-loader.js"></script>
+    <script src="racing-logic.js"></script>
     <script src="app.js"></script>
     <script>
         /**
@@ -2315,10 +2411,16 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 popularityMap[entry[0]] = index + 1; // 1人気から始まる
             });
 
-            // 各馬に人気を追加
+            // 各馬に人気・単勝オッズ・効率ランクを追加
             race.horses.forEach(horse => {
                 const horseNum = String(horse.horse_number);
                 horse.popularity = popularityMap[horseNum] || null;
+                horse.tanshoOdds = oddsMap[horseNum] || null;
+                
+                // 効率ランクを計算（RacingLogicが読み込まれている場合）
+                if (window.RacingLogic && window.RacingLogic.calculateEfficiency) {
+                    horse.efficiency = window.RacingLogic.calculateEfficiency(horse.tanshoOdds);
+                }
             });
         }
     </script>
@@ -2484,6 +2586,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 // オッズから人気を付与（買いレース判定・妙味判定に使用）
                 try {
                     await enrichAllRacesWithPopularity();
+
+                    // ★ ここで racing-logic を事前に "2周" 実行し安定化させる
+                    allRaces.forEach(r => window.RacingLogic.analyzeRace(r)); // 1周目
+                    allRaces.forEach(r => window.RacingLogic.analyzeRace(r)); // 2周目（安定化）
+
                 } catch (error) {
                     console.warn('[人気付与] 全レース処理でエラー:', error);
                 }
@@ -2491,7 +2598,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 // フィルター初期化
                 initializeFilters();
 
-                // レース一覧を表示
+                // レース一覧を表示（安定した race.eval を使う）
                 filteredRaces = allRaces;
                 displayRaces();
 
@@ -2563,174 +2670,35 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             closeHorseList();
         }
 
-        /**
-         * レースの買いレース度を0〜5で算出する（0.5刻みで加点）
-         *
-         * 評価軸:
-         *  1. 頭数（fieldScore）        : 0 〜 1.0
-         *  2. 軸の質（axisScore）       : 0 〜 2.0
-         *  3. 妙味馬の数（valueScore） : 0 〜 2.5
-         */
-        function getRaceBuyLevel(race) {
-            if (!race || !Array.isArray(race.horses) || race.horses.length === 0) {
-                return 0;
-            }
-
-            const horses = race.horses;
-
-            // ========= 1. 頭数スコア =========
-            let fieldScore = 0;
-            const numHorses = typeof race.num_horses === 'number'
-                ? race.num_horses
-                : horses.length;
-
-            // 10〜13頭で +0.5, 14頭以上で +1.0
-            if (numHorses >= 10 && numHorses <= 13) {
-                fieldScore = 0.5;
-            } else if (numHorses >= 14) {
-                fieldScore = 1.0;
-            }
-
-            // ========= 2. 軸の質（複勝スコア） =========
-            let axisScore = 0;
-            let bestShowHorse = null;
-            let bestShowRate = -1;
-
-            horses.forEach((horse) => {
-                if (!horse.predictions) return;
-                const showRate = typeof horse.predictions.show_rate === 'number'
-                    ? horse.predictions.show_rate
-                    : 0;
-
-                if (showRate > bestShowRate) {
-                    bestShowRate = showRate;
-                    bestShowHorse = horse;
-                }
-            });
-
-            if (bestShowHorse && bestShowRate > 0) {
-                // 複勝スコアの高さで 0〜1.5 点
-                if (bestShowRate >= 0.70 && bestShowRate < 0.78) {
-                    axisScore += 0.5;
-                } else if (bestShowRate >= 0.78 && bestShowRate < 0.85) {
-                    axisScore += 1.0;
-                } else if (bestShowRate >= 0.85) {
-                    axisScore += 1.5;
-                }
-
-                const pop = typeof bestShowHorse.popularity === 'number'
-                    ? bestShowHorse.popularity
-                    : null;
-
-                // 4〜9番人気くらいの「ちょい人気薄の軸」は少しプラス
-                if (pop !== null && pop >= 4 && pop <= 9 && bestShowRate >= 0.75) {
-                    axisScore += 0.5;
-                }
-
-                // 1〜2人気のガチガチ本命戦は妙味薄なので少しマイナス
-                if (pop !== null && pop <= 2 && axisScore > 0.5) {
-                    axisScore -= 0.5;
-                }
-            }
-
-            // 上限 2.0 にクリップ
-            if (axisScore < 0) axisScore = 0;
-            if (axisScore > 2.0) axisScore = 2.0;
-
-            // ========= 3. 妙味馬の数（AI順位 vs 人気） =========
-            let majorValueCount = 0; // AI上位（〜3位）なのに人気は5番手以下 & 差3以上
-            let minorValueCount = 0; // AI中位（〜5位）なのに人気は7番手以下 & 差2以上
-
-            horses.forEach((horse) => {
-                if (!horse.predictions) return;
-                if (typeof horse.popularity !== 'number') return;
-
-                const pop = horse.popularity;
-
-                const winRank = typeof horse.predictions.win_rate_rank === 'number'
-                    ? horse.predictions.win_rate_rank
-                    : 99;
-                const placeRank = typeof horse.predictions.place_rate_rank === 'number'
-                    ? horse.predictions.place_rate_rank
-                    : 99;
-                const showRank = typeof horse.predictions.show_rate_rank === 'number'
-                    ? horse.predictions.show_rate_rank
-                    : 99;
-
-                const aiBestRank = Math.min(winRank, placeRank, showRank);
-                const diff = pop - aiBestRank;
-
-                if (aiBestRank <= 3 && pop >= 5 && diff >= 3) {
-                    majorValueCount += 1;
-                } else if (aiBestRank <= 5 && pop >= 7 && diff >= 2) {
-                    minorValueCount += 1;
-                }
-            });
-
-            let valueScore = 0;
-            if (majorValueCount >= 2) {
-                valueScore = 2.5;
-            } else if (majorValueCount === 1) {
-                valueScore = 1.5;
-            } else if (minorValueCount >= 2) {
-                valueScore = 1.0;
-            } else if (minorValueCount === 1) {
-                valueScore = 0.5;
-            }
-
-            // ========= 合算 & 補正 =========
-            let total = fieldScore + axisScore + valueScore;
-
-            // 軸も妙味もないときは、「多頭数だからとりあえず★」を抑える
-            if (axisScore === 0 && valueScore === 0) {
-                if (fieldScore >= 1.0) {
-                    total = 1.0;
-                } else {
-                    total = 0.0;
-                }
-            }
-
-            if (total < 0) total = 0;
-            if (total > 5) total = 5;
-
-            return total;
-        }
 
         /**
-         * 小数（0〜5）を★0〜★5に丸めて表示
+         * レース評価（race.eval.type）に基づいて推奨プリセットを決定
          */
-        function renderBuyLevelStars(level) {
-            const maxStars = 5;
-            // 0.5刻みで加点しているので、ここでは四捨五入して★数を決める
-            const n = Math.max(0, Math.min(maxStars, Math.round(level)));
-
-            let stars = '';
-            for (let i = 0; i < maxStars; i++) {
-                stars += i < n ? '★' : '☆';
-            }
-            return stars;
-        }
-
         function suggestQuickPresetForRace(race) {
-            let level = 0;
-            if (typeof race.buy_level === 'number') {
-                level = race.buy_level;
-            } else if (typeof getRaceBuyLevel === 'function') {
-                level = getRaceBuyLevel(race);
-            }
+            const type = race.eval ? race.eval.type : 'KEN';
 
-            // レベルからざっくりおすすめを決定
-            if (level >= 4.0) {
-                return 'sanren';   // 買いレベル高い → 3連系まで視野
-            } else if (level >= 2.5) {
-                return 'honmei';   // 中〜上 → 本命中心に厚め
-            } else if (level >= 1.5) {
-                return 'ana';      // やや妙味寄り
-            } else {
-                return null;       // あまり積極的には攻めない
+            // 新ロジックとのマッピング
+            switch (type) {
+                case 'SUPER':   // 🔥勝負（鉄板軸＋妙味）
+                    return 'sanren'; // 3連系で大きく狙う
+                
+                case 'CHAOS':   // 💰波乱（軸不在＋激熱多数）
+                    return 'ana';    // 穴狙い・BOX推奨
+                
+                case 'SOLID':   // ✅堅実（鉄板軸＋相手堅い）
+                    return 'honmei'; // 本命重視で点数絞る
+                
+                case 'NORMAL':  // 🤔混戦（実力馬のみ）
+                    return 'ana';    // どちらかと言えば穴/ワイド寄り
+                
+                default:        // KEN（見）など
+                    return null;     // 推奨なし
             }
         }
 
+        /**
+         * 推奨プリセットをハイライト表示
+         */
         function highlightRecommendedQuickPreset(race) {
             const recommendType = suggestQuickPresetForRace(race);
 
@@ -2740,15 +2708,23 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             });
 
             const label = document.getElementById('quickPresetRecommendLabel');
+            
+            // ラベルの更新（判定タイプに応じたメッセージ）
             if (label) {
+                const evalLabel = race.eval ? race.eval.label : '';
+                
                 if (!recommendType) {
-                    label.textContent = 'このレースは控えめな勝負をおすすめします';
+                    label.textContent = `判定【${evalLabel}】のため、無理な勝負はおすすめしません`;
+                    label.style.color = '#94a3b8';
                 } else if (recommendType === 'honmei') {
-                    label.textContent = 'このレースは「本命重視」設定がおすすめです';
+                    label.textContent = `判定【${evalLabel}】: 軸信頼。「本命重視」で点数を絞るのが吉です`;
+                    label.style.color = '#15803d'; // 緑系
                 } else if (recommendType === 'ana') {
-                    label.textContent = 'このレースは「穴狙い」設定がおすすめです';
+                    label.textContent = `判定【${evalLabel}】: 混戦・波乱含み。「穴狙い」で高配当を待ちます`;
+                    label.style.color = '#7e22ce'; // 紫系
                 } else if (recommendType === 'sanren') {
-                    label.textContent = 'このレースは「3連系メイン」設定がおすすめです';
+                    label.textContent = `判定【${evalLabel}】: 期待値MAX。「3連系メイン」で攻めましょう`;
+                    label.style.color = '#dc2626'; // 赤系
                 }
             }
 
@@ -2756,6 +2732,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 return;
             }
 
+            // 対応するボタンに recommended クラスを付与
             const btn = document.querySelector(
                 '.quick-preset-btn[data-type="' + recommendType + '"]'
             );
@@ -2764,7 +2741,7 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             }
         }
 
-        // レース一覧を表示
+        // レース一覧を表示（新・レース判定ロジック適用版）
         function displayRaces() {
             const raceList = document.getElementById('raceList');
             raceList.innerHTML = '';
@@ -2774,13 +2751,15 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 return;
             }
 
-            // 開催場所→R番号の自然順でソート
+            // 日付・場所・R順でソート
             filteredRaces.sort((a, b) => {
+                if (a.date !== b.date) return b.date.localeCompare(a.date); // 日付降順
                 if (a.place !== b.place) return a.place.localeCompare(b.place);
                 return Number(a.round) - Number(b.round);
             });
 
             filteredRaces.forEach((race, index) => {
+
                 const card = document.createElement('div');
                 card.className = 'race-card';
                 card.onclick = () => showHorses(race, card);
@@ -2788,54 +2767,59 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 const raceId = `${race.place}${race.round}R`;
                 const isFavorite = isFavoriteRace(raceId);
 
-                // 買いレース度（0〜5）と★表示
-                const buyLevel = getRaceBuyLevel(race);
-                const buyLevelStars = renderBuyLevelStars(buyLevel);
-                race.buy_level = buyLevel;
-
-                // AI済バッジ判定
+                // AI済バッジ確認
                 let hasAI = false;
                 try {
                     if (typeof loadAIAnalysisResult === 'function') {
                         const saved = loadAIAnalysisResult(race.race_number || raceId);
                         hasAI = !!saved;
                     }
-                } catch (e) {
-                    console.warn('AI済バッジ判定中のエラー:', e);
-                }
-                const aiBadgeHtml = hasAI
-                    ? '<span class="ai-done-badge">AI済</span>'
-                    : '';
+                } catch (e) {}
+                const aiBadgeHtml = hasAI ? '<span class="ai-done-badge">AI済</span>' : '';
+
+                // ★新・判定バッジの生成
+                // RacingLogic.evaluateRace で生成された race.eval を使用
+                const evalData = race.eval || { label: '未判定', color: '#ccc', bg: '#f9f9f9', description: '' };
+                
+                const evalBadge = `
+                    <div style="
+                        display:inline-flex; 
+                        align-items:center;
+                        gap: 6px;
+                        background:${evalData.bg}; 
+                        color:${evalData.color}; 
+                        border:1px solid ${evalData.color}; 
+                        padding:6px 10px; 
+                        border-radius:6px; 
+                        margin-top:10px;
+                    ">
+                        <span style="font-weight:900; font-size:14px;">${evalData.label}</span>
+                        <span style="font-size:11px; opacity:0.9; color:#334155; font-weight:normal;">${evalData.description}</span>
+                    </div>
+                `;
 
                 card.innerHTML = `
                     <div class="race-header">
-                        <input
-                            type="checkbox"
-                            class="race-select-checkbox"
-                            data-race-index="${index}"
-                            onclick="event.stopPropagation();"
-                            style="width: 20px; height: 20px; cursor: pointer; margin-right: 10px;"
-                        >
-                        <div class="race-number">${race.place}${race.round}R</div>
+                        <div style="display:flex; align-items:center;">
+                            <input type="checkbox" class="race-select-checkbox" data-race-index="${index}" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer; margin-right: 10px;">
+                            <div class="race-number">${race.place}${race.round}R</div>
+                        </div>
                         <div class="race-info">
                             ${race.date}<br>
                             ${race.surface} ${race.distance}m
                         </div>
-                        <button
-                            class="favorite-btn"
-                            onclick="event.stopPropagation(); toggleFavoriteRace('${raceId}', this);"
-                            style="background: none; border: none; font-size: 20px; cursor: pointer;"
-                        >
+                        <button class="favorite-btn" onclick="event.stopPropagation(); toggleFavoriteRace('${raceId}', this);" style="background: none; border: none; font-size: 20px; cursor: pointer;">
                             ${isFavorite ? '⭐' : '☆'}
                         </button>
                     </div>
-                    <div class="race-name">${race.race_name}</div>
-                    <div class="race-details">
-                        ${race.race_class} | ${race.num_horses}頭立て ${aiBadgeHtml}<br>
-                        <span style="font-size: 13px; color: #ff9800; font-weight: 600;">
-                            買いレース度: ${buyLevelStars}
-                        </span>
+                    
+                    <div class="race-name" style="font-size:16px; margin-bottom:4px;">${race.race_name}</div>
+                    
+                    <div class="race-details" style="color:#64748b; font-size:12px;">
+                        ${race.race_class} | ${race.num_horses}頭立て ${aiBadgeHtml}
                     </div>
+                    
+                    ${evalBadge}
                 `;
 
                 raceList.appendChild(card);
@@ -2970,175 +2954,360 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             document.getElementById('horsesContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // 一覧表示を生成
+        // 一覧表示を生成（機能完全網羅・バグ修正版）
         function generateListView(race) {
             const listView = document.getElementById('listView');
             const raceId = getRaceId(race);
 
-            // model_infoの表示
+            // ロジック実行（レース選択時に毎回分析）
+            if (window.RacingLogic) {
+                window.RacingLogic.analyzeRace(race);
+            }
+
+            // --- 1. CSSスタイル定義 ---
+            const styles = `
+                <style>
+                    /* 共通: モダンテーブル */
+                    .modern-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 13px; color: #0f172a; }
+                    .modern-table th { background: #f1f5f9; color: #334155; font-weight: 600; padding: 10px 4px; text-align: center; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+                    .modern-table td { padding: 10px 4px; text-align: center; background: white; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+                    
+                    /* 判定列 */
+                    .status-cell { font-weight: 800; font-size: 13px; min-width: 60px; border-left: 4px solid transparent; border-radius: 6px 0 0 6px; }
+                    .modern-table td:last-child { border-radius: 0 6px 6px 0; border-right: 1px solid #e2e8f0; }
+
+                    /* バッジ */
+                    .factor-badges { display: flex; flex-wrap: wrap; gap: 4px; max-width: 220px; }
+                    .factor-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+
+                    /* PowerScore用の強調スタイル */
+                    .power-score-cell { background-color: #f0f9ff !important; font-weight: 800; color: #0369a1; border-left: 2px solid #bae6fd; }
+
+                    /* レスポンシブ切り替え */
+                    .desktop-view { display: block; overflow-x: auto; }
+                    .mobile-view { display: none; }
+
+                    /* スマホ表示 (970px未満) */
+                    @media (max-width: 970px) {
+                        .desktop-view { display: none; }
+                        .mobile-view { display: flex; flex-direction: column; gap: 12px; }
+                        
+                        .horse-list-card {
+                            background: white; border-radius: 12px; padding: 12px;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.06); border-left: 5px solid #ccc;
+                        }
+                        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+                        .card-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+                        
+                        /* スコアグリッド（4列） */
+                        .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; padding: 10px; border-radius: 8px; }
+                        .score-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+                        .score-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+                        .score-val { font-size: 13px; color: #0f172a; font-weight: 600; }
+                        
+                        /* PowerScoreアイテム */
+                        .score-item.power { background: #e0f2fe; border-radius: 6px; padding: 4px; border: 1px solid #bae6fd; grid-column: span 2; }
+                        
+                        .mobile-sort-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+                    }
+                </style>
+            `;
+
+            // --- 2. ヘッダー情報 ---
             let modelInfoHtml = '';
             if (race.model_info) {
                 modelInfoHtml = `
-                    <div style="background: #f0f4ff; border-radius: 10px; padding: 15px; margin-bottom: 15px;">
-                        <div style="font-weight: bold; color: #667eea; margin-bottom: 8px;">🤖 LightGBMモデル情報</div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
-                            <div>勝率AUC: <strong>${race.model_info.win_rate_auc.toFixed(3)}</strong></div>
-                            <div>連対率AUC: <strong>${race.model_info.place_rate_auc.toFixed(3)}</strong></div>
-                            <div>複勝率AUC: <strong>${race.model_info.show_rate_auc.toFixed(3)}</strong></div>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 12px; color: #0f172a;">
+                        <div style="font-weight: 800; color: #0f172a; margin-bottom: 6px;">🤖 Model Specs</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <span>Win: <strong>${race.model_info.win_rate_auc.toFixed(3)}</strong></span>
+                            <span>Place: <strong>${race.model_info.place_rate_auc.toFixed(3)}</strong></span>
+                            <span>Show: <strong>${race.model_info.show_rate_auc.toFixed(3)}</strong></span>
                         </div>
                     </div>
                 `;
             }
 
-            // ソートボタン
-            let sortButtonsHtml = `
-                <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="font-weight: bold; color: #667eea; margin-bottom: 10px;">📊 並び替え</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
-                        <button onclick="sortHorses('${raceId}', 'win_rate')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; cursor: pointer;">AI単勝スコア順</button>
-                        <button onclick="sortHorses('${raceId}', 'show_rate')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">AI複勝スコア順</button>
-                        <button onclick="sortHorses('${raceId}', 'final_score')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">最終スコア順</button>
-                        <button onclick="sortHorses('${raceId}', 'popularity')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">人気順</button>
-                        <button onclick="sortHorses('${raceId}', 'horse_number')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">馬番順</button>
+            let buttonsHtml = `
+                <div style="background: #ffffff; border-radius: 10px; padding: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="font-weight: bold; color: #334155; margin-bottom: 8px; font-size:12px;">📊 並び替え</div>
+                    <div class="mobile-sort-grid" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom:12px;">
+                        <button onclick="sortHorses('${raceId}', 'powerScore')" style="flex:1; padding: 8px; border: 2px solid #0ea5e9; border-radius: 6px; background: #e0f2fe; color: #0284c7; font-weight: 800; font-size:11px; white-space:nowrap; cursor:pointer;">総合期待値</button>
+                        
+                        <button onclick="sortHorses('${raceId}', 'win_rate')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">AI単勝</button>
+                        <button onclick="sortHorses('${raceId}', 'show_rate')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">AI複勝</button>
+                        <button onclick="sortHorses('${raceId}', 'final_score')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">最終Sc</button>
+                        <button onclick="sortHorses('${raceId}', 'popularity')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">人気順</button>
+                        <button onclick="sortHorses('${raceId}', 'horse_number')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">馬番順</button>
+                    </div>
+                    
+                    <div style="font-weight: bold; color: #334155; margin-bottom: 8px; margin-top: 12px; font-size:12px;">📸 画像保存</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="generateShareImage(selectedRace)" style="flex:1; padding: 10px; border: 1px solid #4f46e5; border-radius: 8px; background: #ffffff; color: #4f46e5; font-size: 12px; font-weight: bold; cursor: pointer;">横長(SNS)</button>
+                        <button onclick="generateNoteImage(selectedRace)" style="flex:1; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; font-size: 12px; font-weight: bold; cursor: pointer;">縦長(表)</button>
                     </div>
                 </div>
             `;
 
-            // 共有用画像生成ボタン（横長＋縦長 2種類）
-            let shareButtonHtml = `
-                <div style="background: white; border-radius: 10px; padding: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="font-weight: bold; color: #667eea; margin-bottom: 8px;">
-                        📸 共有用画像
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <button
-                            onclick="generateShareImage(selectedRace)"
-                            style="
-                                width: 100%;
-                                padding: 12px;
-                                border: none;
-                                border-radius: 8px;
-                                background: #ffffff;
-                                color: #667eea;
-                                font-size: 14px;
-                                font-weight: bold;
-                                cursor: pointer;
-                                border: 1px solid #667eea;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-                            "
-                        >
-                            SNS向け横長画像を生成
-                        </button>
-                        <button
-                            onclick="generateNoteImage(selectedRace)"
-                            style="
-                                width: 100%;
-                                padding: 14px;
-                                border: none;
-                                border-radius: 8px;
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                color: #ffffff;
-                                font-size: 15px;
-                                font-weight: bold;
-                                cursor: pointer;
-                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                            "
-                        >
-                            レース表画像を生成（全頭・スマホ向け）
-                        </button>
-                    </div>
-                </div>
-            `;
-
-
-            let html = modelInfoHtml + sortButtonsHtml + shareButtonHtml + `
-                <table class="list-table">
+            // --- 3. PC用テーブル ---
+            let desktopTable = `
+                <div class="desktop-view">
+                <table class="modern-table">
                     <thead>
                         <tr>
-                            <th>順位</th>
-                            <th colspan="3">印</th>
-                            <th>馬番</th>
-                            <th>馬名</th>
-                            <th>騎手</th>
-                            <th>人気</th>
-                            <th>AI単勝スコア</th>
-                            <th>AI単順位</th>
-                            <th>AI連対スコア</th>
-                            <th>AI連順位</th>
-                            <th>AI複勝スコア</th>
-                            <th>AI複順位</th>
-                            <th>最終スコア</th>
-                            <th>マイニング</th>
-                            <th>レース評価</th>
-                            <th>前走偏差値</th>
+                            <th style="width: 70px;">判定</th>
+                            <th style="min-width: 90px;" colspan="3">印</th>
+                            <th style="text-align:left; padding-left:12px; min-width:160px;">馬情報</th>
+                            <th style="text-align:left; min-width:180px;">推奨要素</th>
+                            
+                            <th style="background:#e0f2fe; color:#0369a1; border-bottom:2px solid #bae6fd;">総合期待値</th>
+                            <th style="background:#fef3c7; color:#92400e; border-bottom:2px solid #fcd34d;">単勝</th>
+                            <th style="background:#fef3c7; color:#92400e; border-bottom:2px solid #fcd34d;">効率</th>
+                            
+                            <th>AI単勝</th><th>AI連対</th><th>AI複勝</th><th>最終Sc</th><th>Mining</th><th>R評価</th><th>前走ZI</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
+            // --- 4. スマホ用リスト ---
+            let mobileList = `<div class="mobile-view">`;
+
+            // ループ処理
             race.horses.forEach((horse, index) => {
-                // 馬印の初期化
-                if (!horseMarks[raceId]) {
-                    horseMarks[raceId] = {};
+                if (!horseMarks[raceId]) { horseMarks[raceId] = {}; }
+                if (!horseMarks[raceId][index]) { horseMarks[raceId][index] = [0, 0, 0]; }
+
+                const ana = horse.analysis || { status: 'delete', badges: [] };
+
+                // アイコン＆色設定
+                const icons = {
+                    axis_iron:  '👑',
+                    axis_strong:'🎯',
+                    axis_value: '💎', // ← 追加（妙味軸）
+                    value_high: '🔥',
+                    value:      '💰',
+                    ability:    '✨',
+                    safe:       '',
+                    delete:     ''
+                };
+
+                let statusText   = '消';
+                let statusIcon   = '';
+                let borderColor  = '#cbd5e1';
+                let bgColor      = '#f8fafc';
+                let textColor    = '#94a3b8';
+
+                if (ana.status === 'axis_iron') {
+                    statusText  = '鉄板';
+                    statusIcon  = icons.axis_iron;
+                    borderColor = '#eab308';
+                    bgColor     = '#fffbeb';
+                    textColor   = '#854d0e';
                 }
-                if (!horseMarks[raceId][index]) {
-                    horseMarks[raceId][index] = [0, 0, 0];
+                else if (ana.status === 'axis_strong') {
+                    statusText  = '実力軸';
+                    statusIcon  = icons.axis_strong;
+                    borderColor = '#3b82f6';
+                    bgColor     = '#eff6ff';
+                    textColor   = '#1d4ed8';
+                }
+                else if (ana.status === 'axis_value') {
+                    // ★ 新しい準軸表示
+                    statusText  = '妙味軸';
+                    statusIcon  = icons.axis_value;
+                    borderColor = '#f97316';
+                    bgColor     = '#fff7ed';
+                    textColor   = '#c2410c';
+                }
+                else if (ana.status === 'value_high') {
+                    statusText  = '激熱';
+                    statusIcon  = icons.value_high;
+                    borderColor = '#dc2626';
+                    bgColor     = '#fef2f2';
+                    textColor   = '#b91c1c';
+                }
+                else if (ana.status === 'value') {
+                    statusText  = '妙味';
+                    statusIcon  = icons.value;
+                    borderColor = '#ea580c';
+                    bgColor     = '#fff7ed';
+                    textColor   = '#c2410c';
+                }
+                else if (ana.status === 'ability') {
+                    statusText  = '実力';
+                    statusIcon  = icons.ability;
+                    borderColor = '#3b82f6';
+                    bgColor     = '#eff6ff';
+                    textColor   = '#1d4ed8';
+                }
+                else if (ana.status === 'safe') {
+                    statusText  = '紐';
+                    borderColor = '#94a3b8';
+                    bgColor     = '#ffffff';
+                    textColor   = '#475569';
                 }
 
-                html += `
-                    <tr>
-                        <td>${index + 1}位</td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="0"
-                                 onclick="toggleMark('${raceId}', ${index}, 0)">
+                // バッジ生成
+                let badgesHtml = '';
+                ana.badges.forEach(badge => {
+                    let bColor = '#334155'; let bBg = '#f1f5f9'; let bBorder = '#cbd5e1';
+                    
+                    if (badge.type.includes('axis')) { bBg='#fef08a'; bColor='#854d0e'; bBorder='#eab308'; } // 軸：金
+                    else if (badge.type === 'win')   { bBg='#fee2e2'; bColor='#991b1b'; bBorder='#fca5a5'; } // 単：赤
+                    else if (badge.type === 'place') { bBg='#ffedd5'; bColor='#9a3412'; bBorder='#fdba74'; } // 連：橙
+                    else if (badge.type === 'show')  { bBg='#fef9c3'; bColor='#854d0e'; bBorder='#fde047'; } // 複：黄
+                    
+                    else if (badge.type === 'final') { bBg='#e2e8f0'; bColor='#1e293b'; bBorder='#94a3b8'; } // 終：紺
+                    else if (badge.type === 'mining') { bBg='#f3e8ff'; bColor='#6b21a8'; bBorder='#d8b4fe'; } // 掘：紫
+                    else if (badge.type === 'ability') { bBg='#dcfce7'; bColor='#166534'; bBorder='#86efac'; } // 能：緑
+                    else if (badge.type === 'zi')    { bBg='#dbeafe'; bColor='#1e40af'; bBorder='#93c5fd'; } // 前：青
+                    else if (badge.type === 'base')  { bBg='#f3f4f6'; bColor='#4b5563'; bBorder='#d1d5db'; } // 基：灰
+
+                    let valDisplay = badge.val;
+                    if(badge.style === 'gap') valDisplay = `<strong style="background:rgba(255,255,255,0.6); padding:0 3px; border-radius:3px; color:inherit;">${badge.val}</strong>`;
+
+                    badgesHtml += `<span class="factor-tag" style="background:${bBg}; color:${bColor}; border:1px solid ${bBorder};">${badge.text} ${valDisplay}</span>`;
+                });
+
+                // スコア表示ヘルパー
+                const renderRank = (val, rank) => {
+                    let c = rank === 1 ? '#dc2626' : (rank <= 3 ? '#d97706' : '#0f172a');
+                    let bg = rank === 1 ? '#fcd34d' : (rank === 2 ? '#e2e8f0' : (rank === 3 ? '#fdba74' : '#f1f5f9'));
+                    return `<span style="color:${c}; font-weight:bold;">${val}</span> <span style="background:${bg}; padding:0 4px; border-radius:4px; font-size:9px; color:#334155; font-weight:700;">${rank}</span>`;
+                };
+
+                // Power Score 表示用 (PowerRankも表示)
+                const powerScore = horse.powerScore ? horse.powerScore.toFixed(1) : '-';
+                const powerRank = horse.powerRank || '-';
+                const powerCell = `<div style="font-size:14px;">${powerScore}</div><span style="background:#0284c7; color:white; padding:0 6px; border-radius:4px; font-size:10px; font-weight:bold;">${powerRank}位</span>`;
+
+                // 単勝オッズ・効率ランク表示用
+                const tanshoOdds = horse.tanshoOdds ? horse.tanshoOdds.toFixed(1) : '-';
+                const eff = horse.efficiency || { rank: '-', label: '-', color: '#94a3b8' };
+                const oddsCell = `<div style="font-size:15px; font-weight:bold;">${tanshoOdds}倍</div>`;
+                const effCell = `<div style="font-size:12px; color:${eff.color}; font-weight:bold;">${eff.label}</div><div style="font-size:10px; color:#64748b;">${eff.rank}</div>`;
+
+                // ========== PC用 行生成 ==========
+                desktopTable += `
+                    <tr style="background-color: ${bgColor}; opacity: ${ana.status === 'delete' ? 0.6 : 1};">
+                        <td class="status-cell" style="border-left-color: ${borderColor}; color: ${textColor};">
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <span style="font-size:18px;">${statusIcon}</span><span>${statusText}</span>
+                            </div>
+                        </td>
+                        
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}" data-race="${raceId}" data-horse="${index}" data-slot="0" onclick="toggleMark('${raceId}', ${index}, 0)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][0]].symbol}</div></td>
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][1]].class}" data-race="${raceId}" data-horse="${index}" data-slot="1" onclick="toggleMark('${raceId}', ${index}, 1)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][1]].symbol}</div></td>
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][2]].class}" data-race="${raceId}" data-horse="${index}" data-slot="2" onclick="toggleMark('${raceId}', ${index}, 2)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][2]].symbol}</div></td>
+                        
+                        <td style="text-align:left;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="background:#475569; color:white; border-radius:4px; padding:2px 6px; font-weight:bold; font-size:12px;">${horse.horse_number}</span>
+                                <div>
+                                    <div style="font-weight:bold; font-size:13px; color:#0f172a; cursor:pointer;" onclick="showHorseDetail(selectedRace.horses[${index}])">
+                                        ${horse.horse_name}
+                                    </div>
+                                    <div style="font-size:11px; color:#475569; margin-top:2px;">
+                                        ${horse.jockey.name} <span style="color:#d97706; font-weight:bold;">${horse.popularity}人気</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-align:left;"><div class="factor-badges">${badgesHtml}</div></td>
+                        
+                        <td class="power-score-cell">${powerCell}</td>
+                        <td style="background:#fffbeb;">${oddsCell}</td>
+                        <td style="background:#fffbeb;">${effCell}</td>
+                        
+                        <td>${renderRank((horse.predictions.win_rate*100).toFixed(1), horse.predictions.win_rate_rank)}</td>
+                        <td>${renderRank((horse.predictions.place_rate*100).toFixed(1), horse.predictions.place_rate_rank)}</td>
+                        <td>${renderRank((horse.predictions.show_rate*100).toFixed(1), horse.predictions.show_rate_rank)}</td>
+                        <td>${renderRank(horse.indices.final_score.toFixed(0), horse.finalRank)}</td>
+                        <td>${renderRank(horse.indices.mining_index.toFixed(1), horse.miningRank)}</td>
+                        <td>${renderRank(horse.indices.corrected_time_deviation.toFixed(1), horse.raceEvalRank)}</td>
+                        <td>${renderRank(horse.indices.zi_deviation.toFixed(1), horse.ziRank)}</td>
+                    </tr>
+                `;
+
+                // ========== スマホ用 カード生成 ==========
+                mobileList += `
+                    <div class="horse-list-card" style="border-left-color: ${borderColor}; background: ${bgColor}; opacity: ${ana.status === 'delete' ? 0.7 : 1};">
+                        <div class="card-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="display:flex; flex-direction:column; align-items:center; min-width:35px; color:${textColor};">
+                                    <span style="font-size:22px;">${statusIcon}</span>
+                                    <span style="font-size:11px; font-weight:bold;">${statusText}</span>
+                                </div>
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="background:#334155; color:white; border-radius:4px; padding:1px 5px; font-size:11px; font-weight:bold;">${horse.horse_number}</span>
+                                        <span style="font-weight:bold; font-size:16px; color:#0f172a;">${horse.horse_name}</span>
+                                    </div>
+                                    <div style="font-size:12px; color:#475569; margin-top:2px;">
+                                        ${horse.jockey.name} / <span style="color:#d97706; font-weight:bold;">${horse.popularity}人気</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}" 
+                                 data-race="${raceId}" data-horse="${index}" data-slot="0"
+                                 onclick="toggleMark('${raceId}', ${index}, 0)" 
+                                 style="width:34px; height:34px; font-size:18px; cursor:pointer;">
                                 ${MARKS[horseMarks[raceId][index][0]].symbol}
                             </div>
-                        </td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][1]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="1"
-                                 onclick="toggleMark('${raceId}', ${index}, 1)">
-                                ${MARKS[horseMarks[raceId][index][1]].symbol}
+                        </div>
+
+                        ${badgesHtml ? `<div class="card-badges">${badgesHtml}</div>` : ''}
+
+                        <div class="score-grid">
+                            <div class="score-item power">
+                                <span class="score-label" style="color:#0284c7; font-weight:bold;">総合期待値</span>
+                                <div class="score-val" style="color:#0369a1; font-size:14px;">${powerScore} <span style="font-size:10px;">(${powerRank}位)</span></div>
                             </div>
-                        </td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][2]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="2"
-                                 onclick="toggleMark('${raceId}', ${index}, 2)">
-                                ${MARKS[horseMarks[raceId][index][2]].symbol}
+                            <div class="score-item" style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:4px;">
+                                <span class="score-label" style="color:#92400e; font-weight:bold;">単勝オッズ</span>
+                                <div class="score-val" style="font-size:14px; font-weight:bold;">${tanshoOdds}倍</div>
+                                <div style="font-size:10px; color:${eff.color}; font-weight:bold;">${eff.label}</div>
                             </div>
-                        </td>
-                        <td><strong>${horse.horse_number}番</strong></td>
-                        <td><strong style="cursor: pointer; color: #667eea;" onclick="showHorseDetail(selectedRace.horses[${index}])">${horse.horse_name}</strong> ${horse.mark}</td>
-                        <td>${horse.jockey.name}</td>
-                        <td><strong style="color: #333; font-size: 16px;">${horse.popularity || '-'}人気</strong></td>
-                        <td><strong style="color: #e74c3c; font-size: 16px;">${horse.predictions ? (horse.predictions.win_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.win_rate_rank : '-'}</td>
-                        <td><strong style="color: #f39c12; font-size: 16px;">${horse.predictions ? (horse.predictions.place_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.place_rate_rank : '-'}</td>
-                        <td><strong style="color: #27ae60; font-size: 16px;">${horse.predictions ? (horse.predictions.show_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.show_rate_rank : '-'}</td>
-                        <td><strong style="color: #667eea; font-size: 16px;">${horse.indices.final_score.toFixed(1)}</strong></td>
-                        <td>${horse.indices.mining_index.toFixed(1)}</td>
-                        <td>${horse.indices.corrected_time_deviation.toFixed(1)}</td>
-                        <td>${horse.indices.zi_deviation.toFixed(1)}</td>
-                    </tr>
+                            
+                            <div class="score-item">
+                                <span class="score-label">AI単勝</span>
+                                <div class="score-val">${renderRank((horse.predictions.win_rate*100).toFixed(0), horse.predictions.win_rate_rank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">AI連対</span>
+                                <div class="score-val">${renderRank((horse.predictions.place_rate*100).toFixed(0), horse.predictions.place_rate_rank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">AI複勝</span>
+                                <div class="score-val">${renderRank((horse.predictions.show_rate*100).toFixed(0), horse.predictions.show_rate_rank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">総合Sc</span>
+                                <div class="score-val">${renderRank(horse.indices.final_score.toFixed(0), horse.finalRank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">Mining</span>
+                                <div class="score-val">${renderRank(horse.indices.mining_index.toFixed(1), horse.miningRank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">R評価</span>
+                                <div class="score-val">${renderRank(horse.indices.corrected_time_deviation.toFixed(1), horse.raceEvalRank)}</div>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">前走ZI</span>
+                                <div class="score-val">${renderRank(horse.indices.zi_deviation.toFixed(1), horse.ziRank)}</div>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
 
-            html += `
-                    </tbody>
-                </table>
-            `;
+            desktopTable += `</tbody></table></div>`;
+            mobileList += `</div>`;
 
-            listView.innerHTML = html;
+            listView.innerHTML = styles + modelInfoHtml + buttonsHtml + desktopTable + mobileList;
         }
 
         // 簡易表示を生成
@@ -3585,6 +3754,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             // ソート
             const sortedHorses = [...race.horses];
             switch(sortKey) {
+                // ★追加：総合期待値でのソート
+                case 'powerScore':
+                    sortedHorses.sort((a, b) => (b.powerScore || 0) - (a.powerScore || 0));
+                    break;
+
                 case 'win_rate':
                     sortedHorses.sort((a, b) => {
                         const aRate = a.predictions ? a.predictions.win_rate : 0;
@@ -3650,129 +3824,351 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
         }
 
         // AI分析タブに馬データ一覧を表示する関数
+        // AI分析タブに馬データ一覧を表示する関数（一覧タブと同じ形式）
         function generateAIViewWithHorseList() {
             if (!selectedRace) return;
 
             const container = document.getElementById('aiHorseListContainer');
             const raceId = getRaceId(selectedRace);
+            const race = selectedRace;
 
-            // model_infoの表示
+            // ロジック実行（レース選択時に毎回分析）
+            if (window.RacingLogic) {
+                window.RacingLogic.analyzeRace(race);
+            }
+
+            // --- 1. CSSスタイル定義 ---
+            const styles = `
+                <style>
+                    /* AI分析タブ用テーブルスタイル */
+                    .ai-modern-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 13px; color: #0f172a; }
+                    .ai-modern-table th { background: #f1f5f9; color: #334155; font-weight: 600; padding: 10px 4px; text-align: center; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+                    .ai-modern-table td { padding: 10px 4px; text-align: center; background: white; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+                    
+                    /* 判定列 */
+                    .ai-status-cell { font-weight: 800; font-size: 13px; min-width: 60px; border-left: 4px solid transparent; border-radius: 6px 0 0 6px; }
+                    .ai-modern-table td:last-child { border-radius: 0 6px 6px 0; border-right: 1px solid #e2e8f0; }
+
+                    /* バッジ */
+                    .ai-factor-badges { display: flex; flex-wrap: wrap; gap: 4px; max-width: 220px; }
+                    .ai-factor-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+
+                    /* PowerScore用の強調スタイル */
+                    .ai-power-score-cell { background-color: #f0f9ff !important; font-weight: 800; color: #0369a1; border-left: 2px solid #bae6fd; }
+
+                    /* レスポンシブ切り替え */
+                    .ai-desktop-view { display: block; overflow-x: auto; }
+                    .ai-mobile-view { display: none; }
+
+                    /* スマホ表示 (970px未満) */
+                    @media (max-width: 970px) {
+                        .ai-desktop-view { display: none; }
+                        .ai-mobile-view { display: flex; flex-direction: column; gap: 12px; }
+                        
+                        .ai-horse-list-card {
+                            background: white; border-radius: 12px; padding: 12px;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.06); border-left: 5px solid #ccc;
+                        }
+                        .ai-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+                        .ai-card-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+                        
+                        /* スコアグリッド（4列） */
+                        .ai-score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; padding: 10px; border-radius: 8px; }
+                        .ai-score-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+                        .ai-score-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+                        .ai-score-val { font-size: 13px; color: #0f172a; font-weight: 600; }
+                        
+                        /* PowerScoreアイテム */
+                        .ai-score-item.power { background: #e0f2fe; border-radius: 6px; padding: 4px; border: 1px solid #bae6fd; grid-column: span 2; }
+                    }
+                </style>
+            `;
+
+            // --- 2. ヘッダー情報 ---
             let modelInfoHtml = '';
-            if (selectedRace.model_info) {
+            if (race.model_info) {
                 modelInfoHtml = `
-                    <div style="background: #f0f4ff; border-radius: 10px; padding: 15px; margin-bottom: 15px;">
-                        <div style="font-weight: bold; color: #667eea; margin-bottom: 8px;">🤖 LightGBMモデル情報</div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
-                            <div>勝率AUC: <strong>${selectedRace.model_info.win_rate_auc.toFixed(3)}</strong></div>
-                            <div>連対率AUC: <strong>${selectedRace.model_info.place_rate_auc.toFixed(3)}</strong></div>
-                            <div>複勝率AUC: <strong>${selectedRace.model_info.show_rate_auc.toFixed(3)}</strong></div>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 12px; color: #0f172a;">
+                        <div style="font-weight: 800; color: #0f172a; margin-bottom: 6px;">🤖 Model Specs</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <span>Win: <strong>${race.model_info.win_rate_auc.toFixed(3)}</strong></span>
+                            <span>Place: <strong>${race.model_info.place_rate_auc.toFixed(3)}</strong></span>
+                            <span>Show: <strong>${race.model_info.show_rate_auc.toFixed(3)}</strong></span>
                         </div>
                     </div>
                 `;
             }
 
-            // ソートボタン
-            let sortButtonsHtml = `
-                <div style="background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="font-weight: bold; color: #667eea; margin-bottom: 10px;">📊 並び替え</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
-                        <button onclick="sortHorsesInAIView('${raceId}', 'win_rate')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; cursor: pointer;">AI単勝スコア順</button>
-                        <button onclick="sortHorsesInAIView('${raceId}', 'show_rate')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">AI複勝スコア順</button>
-                        <button onclick="sortHorsesInAIView('${raceId}', 'final_score')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">最終スコア順</button>
-                        <button onclick="sortHorsesInAIView('${raceId}', 'popularity')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">人気順</button>
-                        <button onclick="sortHorsesInAIView('${raceId}', 'horse_number')" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; background: white; color: #667eea; font-weight: bold; cursor: pointer;">馬番順</button>
+            let buttonsHtml = `
+                <div style="background: #ffffff; border-radius: 10px; padding: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="font-weight: bold; color: #334155; margin-bottom: 8px; font-size:12px;">📊 並び替え</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom:12px;">
+                        <button onclick="sortHorsesInAIView('${raceId}', 'powerScore')" style="flex:1; padding: 8px; border: 2px solid #0ea5e9; border-radius: 6px; background: #e0f2fe; color: #0284c7; font-weight: 800; font-size:11px; white-space:nowrap; cursor:pointer;">総合期待値</button>
+                        <button onclick="sortHorsesInAIView('${raceId}', 'win_rate')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">AI単勝</button>
+                        <button onclick="sortHorsesInAIView('${raceId}', 'show_rate')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">AI複勝</button>
+                        <button onclick="sortHorsesInAIView('${raceId}', 'final_score')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">最終Sc</button>
+                        <button onclick="sortHorsesInAIView('${raceId}', 'popularity')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">人気順</button>
+                        <button onclick="sortHorsesInAIView('${raceId}', 'horse_number')" style="flex:1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0f172a; font-weight: bold; font-size:11px; white-space:nowrap; cursor:pointer;">馬番順</button>
                     </div>
                 </div>
             `;
 
-            let html = modelInfoHtml + sortButtonsHtml + `
-                <table class="list-table" style="margin-bottom: 30px;">
+            // --- 3. PC用テーブル ---
+            let desktopTable = `
+                <div class="ai-desktop-view">
+                <table class="ai-modern-table">
                     <thead>
                         <tr>
-                            <th>順位</th>
-                            <th colspan="3">印</th>
-                            <th>馬番</th>
-                            <th>馬名</th>
-                            <th>騎手</th>
-                            <th>人気</th>
-                            <th>AI単勝スコア</th>
-                            <th>AI単順位</th>
-                            <th>AI連対スコア</th>
-                            <th>AI連順位</th>
-                            <th>AI複勝スコア</th>
-                            <th>AI複順位</th>
-                            <th>最終スコア</th>
-                            <th>マイニング</th>
-                            <th>レース評価</th>
-                            <th>前走偏差値</th>
+                            <th style="width: 70px;">判定</th>
+                            <th style="min-width: 90px;" colspan="3">印</th>
+                            <th style="text-align:left; padding-left:12px; min-width:160px;">馬情報</th>
+                            <th style="text-align:left; min-width:180px;">推奨要素</th>
+                            
+                            <th style="background:#e0f2fe; color:#0369a1; border-bottom:2px solid #bae6fd;">総合期待値</th>
+                            <th style="background:#fef3c7; color:#92400e; border-bottom:2px solid #fcd34d;">単勝</th>
+                            <th style="background:#fef3c7; color:#92400e; border-bottom:2px solid #fcd34d;">効率</th>
+                            
+                            <th>AI単勝</th><th>AI連対</th><th>AI複勝</th><th>最終Sc</th><th>Mining</th><th>R評価</th><th>前走ZI</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
-            selectedRace.horses.forEach((horse, index) => {
-                // 馬印の初期化
-                if (!horseMarks[raceId]) {
-                    horseMarks[raceId] = {};
+            // --- 4. スマホ用リスト ---
+            let mobileList = `<div class="ai-mobile-view">`;
+
+            // ループ処理
+            race.horses.forEach((horse, index) => {
+                if (!horseMarks[raceId]) { horseMarks[raceId] = {}; }
+                if (!horseMarks[raceId][index]) { horseMarks[raceId][index] = [0, 0, 0]; }
+
+                const ana = horse.analysis || { status: 'delete', badges: [] };
+
+                // アイコン＆色設定
+                const icons = {
+                    axis_iron:  '👑',
+                    axis_strong:'🎯',
+                    axis_value: '💎',
+                    value_high: '🔥',
+                    value:      '💰',
+                    ability:    '✨',
+                    safe:       '',
+                    delete:     ''
+                };
+
+                let statusText   = '消';
+                let statusIcon   = '';
+                let borderColor  = '#cbd5e1';
+                let bgColor      = '#f8fafc';
+                let textColor    = '#94a3b8';
+
+                if (ana.status === 'axis_iron') {
+                    statusText  = '鉄板';
+                    statusIcon  = icons.axis_iron;
+                    borderColor = '#eab308';
+                    bgColor     = '#fffbeb';
+                    textColor   = '#854d0e';
                 }
-                if (!horseMarks[raceId][index]) {
-                    horseMarks[raceId][index] = [0, 0, 0];
+                else if (ana.status === 'axis_strong') {
+                    statusText  = '実力軸';
+                    statusIcon  = icons.axis_strong;
+                    borderColor = '#3b82f6';
+                    bgColor     = '#eff6ff';
+                    textColor   = '#1d4ed8';
+                }
+                else if (ana.status === 'axis_value') {
+                    statusText  = '妙味軸';
+                    statusIcon  = icons.axis_value;
+                    borderColor = '#f97316';
+                    bgColor     = '#fff7ed';
+                    textColor   = '#c2410c';
+                }
+                else if (ana.status === 'value_high') {
+                    statusText  = '激熱';
+                    statusIcon  = icons.value_high;
+                    borderColor = '#dc2626';
+                    bgColor     = '#fef2f2';
+                    textColor   = '#b91c1c';
+                }
+                else if (ana.status === 'value') {
+                    statusText  = '妙味';
+                    statusIcon  = icons.value;
+                    borderColor = '#ea580c';
+                    bgColor     = '#fff7ed';
+                    textColor   = '#c2410c';
+                }
+                else if (ana.status === 'ability') {
+                    statusText  = '実力';
+                    statusIcon  = icons.ability;
+                    borderColor = '#3b82f6';
+                    bgColor     = '#eff6ff';
+                    textColor   = '#1d4ed8';
+                }
+                else if (ana.status === 'safe') {
+                    statusText  = '紐';
+                    borderColor = '#94a3b8';
+                    bgColor     = '#ffffff';
+                    textColor   = '#475569';
                 }
 
-                html += `
-                    <tr>
-                        <td>${index + 1}位</td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="0"
-                                 onclick="toggleMark('${raceId}', ${index}, 0)">
+                // バッジ生成
+                let badgesHtml = '';
+                if (ana.badges) {
+                    ana.badges.forEach(badge => {
+                        let bColor = '#334155'; let bBg = '#f1f5f9'; let bBorder = '#cbd5e1';
+                        
+                        if (badge.type.includes('axis')) { bBg='#fef08a'; bColor='#854d0e'; bBorder='#eab308'; }
+                        else if (badge.type === 'win')   { bBg='#fee2e2'; bColor='#991b1b'; bBorder='#fca5a5'; }
+                        else if (badge.type === 'place') { bBg='#ffedd5'; bColor='#9a3412'; bBorder='#fdba74'; }
+                        else if (badge.type === 'show')  { bBg='#fef9c3'; bColor='#854d0e'; bBorder='#fde047'; }
+                        else if (badge.type === 'final') { bBg='#e2e8f0'; bColor='#1e293b'; bBorder='#94a3b8'; }
+                        else if (badge.type === 'mining') { bBg='#f3e8ff'; bColor='#6b21a8'; bBorder='#d8b4fe'; }
+                        else if (badge.type === 'ability') { bBg='#dcfce7'; bColor='#166534'; bBorder='#86efac'; }
+                        else if (badge.type === 'zi')    { bBg='#dbeafe'; bColor='#1e40af'; bBorder='#93c5fd'; }
+                        else if (badge.type === 'base')  { bBg='#f3f4f6'; bColor='#4b5563'; bBorder='#d1d5db'; }
+
+                        let valDisplay = badge.val;
+                        if(badge.style === 'gap') valDisplay = `<strong style="background:rgba(255,255,255,0.6); padding:0 3px; border-radius:3px; color:inherit;">${badge.val}</strong>`;
+
+                        badgesHtml += `<span class="ai-factor-tag" style="background:${bBg}; color:${bColor}; border:1px solid ${bBorder};">${badge.text} ${valDisplay}</span>`;
+                    });
+                }
+
+                // スコア表示ヘルパー
+                const renderRank = (val, rank) => {
+                    let c = rank === 1 ? '#dc2626' : (rank <= 3 ? '#d97706' : '#0f172a');
+                    let bg = rank === 1 ? '#fcd34d' : (rank === 2 ? '#e2e8f0' : (rank === 3 ? '#fdba74' : '#f1f5f9'));
+                    return `<span style="color:${c}; font-weight:bold;">${val}</span> <span style="background:${bg}; padding:0 4px; border-radius:4px; font-size:9px; color:#334155; font-weight:700;">${rank}</span>`;
+                };
+
+                // Power Score 表示用
+                const powerScore = horse.powerScore ? horse.powerScore.toFixed(1) : '-';
+                const powerRank = horse.powerRank || '-';
+                const powerCell = `<div style="font-size:14px;">${powerScore}</div><span style="background:#0284c7; color:white; padding:0 6px; border-radius:4px; font-size:10px; font-weight:bold;">${powerRank}位</span>`;
+
+                // 単勝オッズ・効率ランク
+                const tanshoOdds = horse.tanshoOdds ? horse.tanshoOdds.toFixed(1) + '倍' : '-';
+                const effLabel = horse.efficiency ? horse.efficiency.label : '-';
+                const effRank = horse.efficiency ? horse.efficiency.rank : '-';
+                const effColor = horse.efficiency ? horse.efficiency.color : '#64748b';
+
+                // ========== PC用 行生成 ==========
+                desktopTable += `
+                    <tr style="background-color: ${bgColor}; opacity: ${ana.status === 'delete' ? 0.6 : 1};">
+                        <td class="ai-status-cell" style="border-left-color: ${borderColor}; color: ${textColor};">
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <span style="font-size:18px;">${statusIcon}</span><span>${statusText}</span>
+                            </div>
+                        </td>
+                        
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}" data-race="${raceId}" data-horse="${index}" data-slot="0" onclick="toggleMark('${raceId}', ${index}, 0)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][0]].symbol}</div></td>
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][1]].class}" data-race="${raceId}" data-horse="${index}" data-slot="1" onclick="toggleMark('${raceId}', ${index}, 1)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][1]].symbol}</div></td>
+                        <td style="padding:2px;"><div class="mark-slot ${MARKS[horseMarks[raceId][index][2]].class}" data-race="${raceId}" data-horse="${index}" data-slot="2" onclick="toggleMark('${raceId}', ${index}, 2)" style="width:24px; height:24px; margin:0 auto; cursor:pointer;">${MARKS[horseMarks[raceId][index][2]].symbol}</div></td>
+                        
+                        <td style="text-align:left;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="background:#475569; color:white; border-radius:4px; padding:2px 6px; font-weight:bold; font-size:12px;">${horse.horse_number}</span>
+                                <div>
+                                    <div style="font-weight:bold; font-size:13px; color:#0f172a; cursor:pointer;" onclick="showHorseDetail(selectedRace.horses[${index}])">
+                                        ${horse.horse_name}
+                                    </div>
+                                    <div style="font-size:11px; color:#475569; margin-top:2px;">
+                                        ${horse.jockey.name} <span style="color:#d97706; font-weight:bold;">${horse.popularity}人気</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-align:left;"><div class="ai-factor-badges">${badgesHtml}</div></td>
+                        
+                        <td class="ai-power-score-cell">${powerCell}</td>
+                        <td style="font-weight:bold; color:#92400e;">${tanshoOdds}</td>
+                        <td style="color:${effColor}; font-weight:bold;">${effLabel}<div style="font-size:10px; color:#64748b;">(${effRank})</div></td>
+                        
+                        <td>${renderRank((horse.predictions.win_rate*100).toFixed(1), horse.predictions.win_rate_rank)}</td>
+                        <td>${renderRank((horse.predictions.place_rate*100).toFixed(1), horse.predictions.place_rate_rank)}</td>
+                        <td>${renderRank((horse.predictions.show_rate*100).toFixed(1), horse.predictions.show_rate_rank)}</td>
+                        <td>${renderRank(horse.indices.final_score.toFixed(0), horse.finalRank)}</td>
+                        <td>${renderRank(horse.indices.mining_index.toFixed(1), horse.miningRank)}</td>
+                        <td>${renderRank(horse.indices.corrected_time_deviation.toFixed(1), horse.raceEvalRank)}</td>
+                        <td>${renderRank(horse.indices.zi_deviation.toFixed(1), horse.ziRank)}</td>
+                    </tr>
+                `;
+
+                // ========== スマホ用 カード生成 ==========
+                mobileList += `
+                    <div class="ai-horse-list-card" style="border-left-color: ${borderColor}; background: ${bgColor}; opacity: ${ana.status === 'delete' ? 0.7 : 1};">
+                        <div class="ai-card-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="display:flex; flex-direction:column; align-items:center; min-width:35px; color:${textColor};">
+                                    <span style="font-size:22px;">${statusIcon}</span>
+                                    <span style="font-size:11px; font-weight:bold;">${statusText}</span>
+                                </div>
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="background:#334155; color:white; border-radius:4px; padding:1px 5px; font-size:11px; font-weight:bold;">${horse.horse_number}</span>
+                                        <span style="font-weight:bold; font-size:16px; color:#0f172a;">${horse.horse_name}</span>
+                                    </div>
+                                    <div style="font-size:12px; color:#475569; margin-top:2px;">
+                                        ${horse.jockey.name} / <span style="color:#d97706; font-weight:bold;">${horse.popularity}人気</span>
+                                        / <span style="color:#92400e; font-weight:bold;">${tanshoOdds}</span>
+                                        <span style="color:${effColor}; font-weight:bold;">${effLabel}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][0]].class}" 
+                                 data-race="${raceId}" data-horse="${index}" data-slot="0"
+                                 onclick="toggleMark('${raceId}', ${index}, 0)" 
+                                 style="width:34px; height:34px; font-size:18px; cursor:pointer;">
                                 ${MARKS[horseMarks[raceId][index][0]].symbol}
                             </div>
-                        </td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][1]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="1"
-                                 onclick="toggleMark('${raceId}', ${index}, 1)">
-                                ${MARKS[horseMarks[raceId][index][1]].symbol}
+                        </div>
+
+                        ${badgesHtml ? `<div class="ai-card-badges">${badgesHtml}</div>` : ''}
+
+                        <div class="ai-score-grid">
+                            <div class="ai-score-item power">
+                                <span class="ai-score-label" style="color:#0284c7; font-weight:bold;">総合期待値</span>
+                                <div class="ai-score-val" style="color:#0369a1; font-size:14px;">${powerScore} <span style="font-size:10px;">(${powerRank}位)</span></div>
                             </div>
-                        </td>
-                        <td>
-                            <div class="mark-slot ${MARKS[horseMarks[raceId][index][2]].class}"
-                                 data-race="${raceId}"
-                                 data-horse="${index}"
-                                 data-slot="2"
-                                 onclick="toggleMark('${raceId}', ${index}, 2)">
-                                ${MARKS[horseMarks[raceId][index][2]].symbol}
+                            
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">AI単勝</span>
+                                <div class="ai-score-val">${renderRank((horse.predictions.win_rate*100).toFixed(0), horse.predictions.win_rate_rank)}</div>
                             </div>
-                        </td>
-                        <td><strong>${horse.horse_number}番</strong></td>
-                        <td><strong style="cursor: pointer; color: #667eea;" onclick="showHorseDetail(selectedRace.horses[${index}])">${horse.horse_name}</strong> ${horse.mark}</td>
-                        <td>${horse.jockey.name}</td>
-                        <td><strong style="color: #333; font-size: 16px;">${horse.popularity || '-'}人気</strong></td>
-                        <td><strong style="color: #e74c3c; font-size: 16px;">${horse.predictions ? (horse.predictions.win_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.win_rate_rank : '-'}</td>
-                        <td><strong style="color: #f39c12; font-size: 16px;">${horse.predictions ? (horse.predictions.place_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.place_rate_rank : '-'}</td>
-                        <td><strong style="color: #27ae60; font-size: 16px;">${horse.predictions ? (horse.predictions.show_rate * 100).toFixed(1) : '-'}</strong></td>
-                        <td>${horse.predictions ? horse.predictions.show_rate_rank : '-'}</td>
-                        <td><strong style="color: #667eea; font-size: 16px;">${horse.indices.final_score.toFixed(1)}</strong></td>
-                        <td>${horse.indices.mining_index.toFixed(1)}</td>
-                        <td>${horse.indices.corrected_time_deviation.toFixed(1)}</td>
-                        <td>${horse.indices.zi_deviation.toFixed(1)}</td>
-                    </tr>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">AI連対</span>
+                                <div class="ai-score-val">${renderRank((horse.predictions.place_rate*100).toFixed(0), horse.predictions.place_rate_rank)}</div>
+                            </div>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">AI複勝</span>
+                                <div class="ai-score-val">${renderRank((horse.predictions.show_rate*100).toFixed(0), horse.predictions.show_rate_rank)}</div>
+                            </div>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">総合Sc</span>
+                                <div class="ai-score-val">${renderRank(horse.indices.final_score.toFixed(0), horse.finalRank)}</div>
+                            </div>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">Mining</span>
+                                <div class="ai-score-val">${renderRank(horse.indices.mining_index.toFixed(1), horse.miningRank)}</div>
+                            </div>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">R評価</span>
+                                <div class="ai-score-val">${renderRank(horse.indices.corrected_time_deviation.toFixed(1), horse.raceEvalRank)}</div>
+                            </div>
+                            <div class="ai-score-item">
+                                <span class="ai-score-label">前走ZI</span>
+                                <div class="ai-score-val">${renderRank(horse.indices.zi_deviation.toFixed(1), horse.ziRank)}</div>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
 
-            html += `
-                    </tbody>
-                </table>
-            `;
+            desktopTable += `</tbody></table></div>`;
+            mobileList += `</div>`;
 
-            container.innerHTML = html;
+            container.innerHTML = styles + modelInfoHtml + buttonsHtml + desktopTable + mobileList;
         }
 
         // AI分析タブ内でのソート関数
@@ -3782,7 +4178,13 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             // ソート処理
             const sortedHorses = [...selectedRace.horses];
 
-            if (sortBy === 'win_rate') {
+            if (sortBy === 'powerScore') {
+                sortedHorses.sort((a, b) => {
+                    const aPower = a.powerScore || 0;
+                    const bPower = b.powerScore || 0;
+                    return bPower - aPower;
+                });
+            } else if (sortBy === 'win_rate') {
                 sortedHorses.sort((a, b) => {
                     const aRate = a.predictions ? a.predictions.win_rate : 0;
                     const bRate = b.predictions ? b.predictions.win_rate : 0;
@@ -3822,14 +4224,17 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
             const buttons = container.querySelectorAll('button[onclick^="sortHorsesInAIView"]');
 
             buttons.forEach(btn => {
-                if (btn.onclick.toString().includes(`'${activeSort}'`)) {
-                    btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    btn.style.color = 'white';
-                    btn.style.border = '2px solid #667eea';
+                const onclick = btn.getAttribute('onclick') || '';
+                if (onclick.includes(`'${activeSort}'`)) {
+                    btn.style.background = '#e0f2fe';
+                    btn.style.color = '#0284c7';
+                    btn.style.border = '2px solid #0ea5e9';
+                    btn.style.fontWeight = '800';
                 } else {
-                    btn.style.background = 'white';
-                    btn.style.color = '#667eea';
-                    btn.style.border = '2px solid #e0e0e0';
+                    btn.style.background = '#f1f5f9';
+                    btn.style.color = '#0f172a';
+                    btn.style.border = '1px solid #cbd5e1';
+                    btn.style.fontWeight = 'bold';
                 }
             });
         }
