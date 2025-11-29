@@ -262,7 +262,7 @@ function generateNoteImage(race) {
     // テーブル開始位置
     const tableY = innerY + headerHeight;
 
-    // 列構成：順位・馬番・馬名・人気・AI複勝%・最終スコア
+    // 列構成：順位・馬番・馬名・人気・AI複勝・最終スコア
     const colWidths = [70, 60, 270, 120, 160, 140];
     const colX = [];
     let currentX = innerX + 20;
@@ -279,7 +279,7 @@ function generateNoteImage(race) {
     ctx.font = 'bold 18px "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif';
     ctx.textAlign = 'center';
 
-    const headers = ['順位', '馬番', '馬名', '人気', 'AI複勝(%)', '最終指数'];
+    const headers = ['順位', '馬番', '馬名', '人気', 'AI複勝', '最終スコア'];
     headers.forEach((header, i) => {
         const centerX = colX[i] + colWidths[i] / 2;
         ctx.fillText(header, centerX, tableY + 32);

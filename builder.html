@@ -1,0 +1,2918 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <title>馬印カードビルダー＋AI配分プレビュー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #e5e9f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .app-frame {
+            margin: 0 auto;
+            max-width: 430px;
+            height: calc(100vh - 32px);
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .app-header {
+            flex: 0 0 auto;
+            padding: 12px 16px 8px;
+            background: #1e88e5;
+            color: #fff;
+        }
+
+        .app-header-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .app-header-sub {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        /* API設定・レース選択エリア */
+        .config-section {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .config-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .config-label {
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 70px;
+        }
+
+        .config-input {
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+
+        .config-select {
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .config-button {
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            background: #1e88e5;
+            color: white;
+            cursor: pointer;
+        }
+
+        .config-button:disabled {
+            background: #90a4ae;
+            cursor: not-allowed;
+        }
+
+        .config-status {
+            font-size: 10px;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        /* ツールバー（保存・復元） */
+        .toolbar-section {
+            flex: 0 0 auto;
+            padding: 6px 12px;
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toolbar-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .toolbar-button {
+            padding: 3px 8px;
+            font-size: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .toolbar-button:hover {
+            background: #f5f5f5;
+        }
+
+        .toolbar-notice {
+            font-size: 9px;
+            color: #888;
+        }
+
+        .app-main {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* card box：上側（スクロール可） */
+        .cardbox-section {
+            height: 380px;  /* 印エリアと重ならない高さ */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin-top: 4px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .cardbox-header {
+            padding: 4px 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cardbox-title {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .cardbox-controls {
+            display: flex;
+            gap: 4px;
+        }
+
+        .chip-button {
+            border-radius: 999px;
+            padding: 3px 8px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
+            font-size: 11px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chip-button.active {
+            background: #1e88e5;
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .chip-button span.dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .cardbox-filters {
+            padding: 4px 12px 0;
+            font-size: 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: #666;
+        }
+
+        .cardbox-filters-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .cardbox-filters-small {
+            font-size: 9px;
+            color: #777;
+        }
+
+        .filter-input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        .filter-input {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 9px;
+        }
+
+        .filter-input input {
+            width: 42px;
+            font-size: 9px;
+            padding: 2px 3px;
+        }
+
+        .cardbox-list-wrapper {
+            flex: 1 1 auto;
+            margin-top: 4px;
+            padding: 4px 8px 8px;
+            overflow-y: auto;  /* スクロール有効化 */
+        }
+
+        .cardbox-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 3px;
+        }
+
+        /* 空のプレースホルダー用カード */
+        .horse-card-placeholder {
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #f0f0f0;
+            background: #fafafa;
+            opacity: 0.3;
+        }
+
+        .horse-card {
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            font-size: 9px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            position: relative;
+            transition: transform 0.08s ease, box-shadow 0.08s ease, border-color 0.08s;
+        }
+
+        .horse-card:active {
+            transform: translateY(1px) scale(0.99);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        .horse-card.selected {
+            border-color: #1e88e5;
+            box-shadow: 0 0 0 1px rgba(30,136,229,0.2);
+        }
+
+        .horse-card-header {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .horse-no-badge {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            background: #1e88e5;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .horse-name {
+            font-weight: 600;
+            font-size: 11px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .horse-tagmark {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 4px;
+            background: #e3f2fd;
+            color: #1e88e5;
+        }
+
+        .horse-card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #555;
+        }
+
+        .horse-meta-label {
+            opacity: 0.8;
+            margin-right: 2px;
+        }
+
+        .horse-ai-chip {
+            margin-top: 2px;
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 999px;
+            background: #f1f8e9;
+            color: #558b2f;
+            align-self: flex-start;
+            line-height: 1.3;
+        }
+
+        /* 下側：印テーブル＋買い目生成＋買い目リスト */
+        .marks-and-preview {
+            flex: 0 0 auto;
+            padding: 6px 12px 8px;
+            border-top: 1px solid #e0e0e0;
+            background: #fafafa;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .marks-container {
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .mark-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-bottom: 1px solid #eeeeee;
+            background: #ffffff;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+
+        .mark-row:last-child {
+            border-bottom: none;
+        }
+
+        .mark-row.selected {
+            background: #e3f2fd;
+            box-shadow: inset 3px 0 0 #1e88e5;
+        }
+
+        .mark-label {
+            display: flex;
+            align-items: center;
+            min-width: 80px;
+        }
+
+        .mark-color-bar {
+            width: 4px;
+            height: 24px;
+            border-radius: 999px;
+            margin-right: 8px;
+        }
+
+        .mark-symbol {
+            font-size: 16px;
+            margin-right: 4px;
+        }
+
+        .mark-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .mark-horses {
+            flex: 1;
+            min-height: 30px;
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 4px;
+            padding-left: 4px;
+        }
+
+        .mark-horses::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .mark-horses::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 999px;
+        }
+
+        .mark-horse-pill {
+            flex: 0 0 auto;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .mark-horse-no {
+            font-weight: 600;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: #f5f5f5;
+        }
+
+        .mark-ai-score {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: #e3f2fd;
+            color: #1e88e5;
+        }
+
+        .preview-container {
+            margin-top: 4px;
+            padding: 6px 8px;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+            font-size: 10px;
+        }
+
+        .preview-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .preview-title {
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .preview-budget-input {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+        }
+
+        .preview-budget-input input {
+            width: 80px;
+            font-size: 10px;
+            padding: 2px 4px;
+        }
+
+        .preview-form {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+
+        .preview-form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+        }
+
+        .preview-form-row label {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .preview-form-row select {
+            font-size: 10px;
+            padding: 2px 4px;
+            flex: 1;
+        }
+
+        .preview-form-row .to-marks {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        .to-mark-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 999px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        .to-mark-chip input {
+            margin: 0;
+        }
+
+        .preview-generate-button {
+            margin-top: 2px;
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 6px 0;
+            font-size: 11px;
+            font-weight: 600;
+            background: #1e88e5;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .preview-add-button {
+            margin-top: 4px;
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 5px 0;
+            font-size: 10px;
+            font-weight: 600;
+            background: #ffffff;
+            color: #1e88e5;
+            border: 1px solid #1e88e5;
+            cursor: pointer;
+        }
+
+        .preview-combos-header {
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+        }
+
+        .preview-combos-header strong {
+            font-size: 11px;
+        }
+
+        .preview-combo-container {
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .preview-combo-chip {
+            padding: 2px 6px;
+            border-radius: 999px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
+            font-size: 10px;
+        }
+
+        .preview-note {
+            margin-top: 4px;
+            font-size: 9px;
+            color: #777;
+        }
+
+        .preview-ai-button {
+            margin-top: 6px;
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 6px 0;
+            font-size: 11px;
+            font-weight: 600;
+            background: #43a047;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .preview-ai-button:disabled {
+            background: #90a4ae;
+            cursor: not-allowed;
+        }
+
+        .preview-ai-button span.icon {
+            font-size: 14px;
+        }
+
+        .ai-result-toast {
+            margin-top: 4px;
+            padding: 4px 6px;
+            font-size: 9px;
+            border-radius: 6px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: none;
+        }
+
+        .ai-result-toast.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        /* AI配分結果UI */
+        .ai-allocation-result {
+            margin-top: 12px;
+            padding: 16px;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8f4f8 100%);
+            display: none;
+            min-height: 300px;
+        }
+
+        .ai-result-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+            text-align: center;
+        }
+
+        .ai-result-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .ai-summary-card {
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        .ai-summary-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .ai-summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e88e5;
+        }
+
+        .ai-risk-chart {
+            height: 60px;
+            background: white;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .risk-donut {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto;
+        }
+
+        /* 買い目リスト */
+        .betlist-wrapper {
+            margin-top: 6px;
+            padding: 6px 8px;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+            font-size: 10px;
+        }
+
+        .betlist-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .betlist-title {
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .betlist-summary {
+            font-size: 9px;
+            color: #555;
+            text-align: right;
+        }
+
+        .betlist-summary span.value {
+            font-weight: 600;
+            margin-left: 2px;
+        }
+
+        .betlist-risk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #fff8e1;
+            color: #f9a825;
+            margin-left: 4px;
+        }
+
+        .betlist-table-header {
+            display: grid;
+            grid-template-columns: 1.2fr 1.6fr 1fr 0.9fr 0.4fr;
+            padding: 4px 6px;
+            border-radius: 8px;
+            background: #f5f5f5;
+            font-weight: 600;
+            font-size: 9px;
+            margin-bottom: 2px;
+        }
+
+        .betlist-rows {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .betlist-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1.6fr 1fr 0.9fr 0.4fr;
+            align-items: center;
+            padding: 4px 6px;
+            font-size: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .betlist-row:last-child {
+            border-bottom: none;
+        }
+
+        .betlist-bettype {
+            font-weight: 600;
+        }
+
+        .betlist-combination {
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+        }
+
+        .betlist-odds {
+            text-align: right;
+        }
+
+        .betlist-stake {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .betlist-stake.ai-allocated {
+            color: #2e7d32;
+        }
+
+        .betlist-remove {
+            text-align: center;
+        }
+
+        .betlist-remove button {
+            border: none;
+            background: transparent;
+            color: #b0bec5;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .betlist-row.grade-A .betlist-odds {
+            color: #2e7d32;
+        }
+
+        .betlist-row.grade-B .betlist-odds {
+            color: #1976d2;
+        }
+
+        .betlist-row.grade-C .betlist-odds {
+            color: #c62828;
+        }
+
+        .app-footer {
+            flex: 0 0 auto;
+            padding: 4px 12px 8px;
+            font-size: 9px;
+            color: #888;
+            text-align: right;
+            background: #fafafa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0;
+                background: #ffffff;
+            }
+
+            .app-frame {
+                max-width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-frame">
+        <header class="app-header">
+            <div class="app-header-title">馬印カードビルダー＋AI配分プレビュー</div>
+            <div class="app-header-sub">
+                Supabaseからレースデータ読み込み → 印付け → AI資金配分
+            </div>
+        </header>
+
+        <!-- API設定・レース選択 -->
+        <section class="config-section">
+            <div class="config-row">
+                <label class="config-label">Gemini API:</label>
+                <input type="password" id="geminiApiKey" class="config-input" placeholder="APIキーを入力">
+                <button class="config-button" id="saveApiKeyBtn">保存</button>
+            </div>
+            <div class="config-row">
+                <label class="config-label">AIモデル:</label>
+                <select id="geminiModel" class="config-select">
+                    <option value="gemini-2.5-flash-lite">Gemini 2.5 lite (高速)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (高精度)</option>
+                </select>
+            </div>
+            <div class="config-row">
+                <label class="config-label">レース選択:</label>
+                <select id="raceSelect" class="config-select">
+                    <option value="">レースを選択してください</option>
+                </select>
+                <button class="config-button" id="loadRaceBtn" disabled>読込</button>
+                <span class="config-status" id="loadStatus"></span>
+            </div>
+        </section>
+
+        <!-- ツールバー -->
+        <section class="toolbar-section">
+            <div class="toolbar-buttons">
+                <button class="toolbar-button" id="saveStateBtn">📁 保存</button>
+                <button class="toolbar-button" id="loadStateBtn">📂 復元</button>
+                <button class="toolbar-button" id="exportImageBtn">📷 画像保存</button>
+                <button class="toolbar-button" id="clearAllBtn">🗑️ クリア</button>
+            </div>
+            <div class="toolbar-notice">※保存データは24時間で自動削除</div>
+        </section>
+
+        <main class="app-main">
+            <!-- 1. card box（上側） -->
+            <section class="cardbox-section">
+                <div class="cardbox-header">
+                    <div class="cardbox-title">card box</div>
+                    <div class="cardbox-controls">
+                        <button class="chip-button active" id="sortPopularityBtn">
+                            <span class="dot"></span>人気順
+                        </button>
+                        <button class="chip-button" id="sortWinBtn">
+                            単勝順
+                        </button>
+                        <button class="chip-button" id="sortQuinellaBtn">
+                            連対順
+                        </button>
+                        <button class="chip-button" id="sortShowBtn">
+                            複勝順
+                        </button>
+                        <button class="chip-button" id="sortFinalBtn">
+                            最終順
+                        </button>
+                    </div>
+                </div>
+                <div class="cardbox-filters">
+                    <div class="cardbox-filters-row">
+                        <div>タップで印に追加 / 再タップで解除</div>
+                    </div>
+                    <div class="cardbox-filters-row">
+                        <div class="cardbox-filters-small">AIスコアフィルタ（以上・AND条件）</div>
+                        <div class="filter-input-group">
+                            <div class="filter-input">
+                                単勝 <input type="number" id="filterAiWin" min="0" placeholder="-" />
+                            </div>
+                            <div class="filter-input">
+                                連対 <input type="number" id="filterAiQuinella" min="0" placeholder="-" />
+                            </div>
+                            <div class="filter-input">
+                                複勝 <input type="number" id="filterAiShow" min="0" placeholder="-" />
+                            </div>
+                            <div class="filter-input">
+                                最終 <input type="number" id="filterFinal" min="0" placeholder="-" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="cardbox-list-wrapper">
+                    <div class="cardbox-grid" id="cardBoxGrid">
+                        <!-- JSでカード描画 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. 印テーブル＋買い目生成＋買い目リスト（下側） -->
+            <section class="marks-and-preview">
+                <div class="marks-container" id="marksContainer">
+                    <!-- JSで印行を描画 -->
+                </div>
+
+                <div class="preview-container">
+                    <div class="preview-header-line">
+                        <div class="preview-title">買い目生成（印ベースの入力補助）</div>
+                        <label class="preview-budget-input">
+                            予算: <input type="number" id="budgetInput" value="10000" min="100" step="100" /> 円
+                        </label>
+                    </div>
+                    <div class="preview-form">
+                        <div class="preview-form-row">
+                            <label for="betTypeSelect">券種</label>
+                            <select id="betTypeSelect">
+                                <option value="tanshou">単勝</option>
+                                <option value="fukushou">複勝</option>
+                                <option value="umaren">馬連</option>
+                                <option value="umatan">馬単</option>
+                                <option value="wide">ワイド</option>
+                                <option value="sanrenpuku">三連複</option>
+                                <option value="sanrentan">三連単</option>
+                            </select>
+                        </div>
+
+                        <div class="preview-form-row">
+                            <label>生成方式</label>
+                            <div class="form-radio-group">
+                                <label>
+                                    <input type="radio" name="genType" value="flow" checked>
+                                    流し
+                                </label>
+                                <label>
+                                    <input type="radio" name="genType" value="formation">
+                                    フォーメーション
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 流し設定 -->
+                        <div id="flowSettings">
+                            <div class="preview-form-row">
+                                <label for="fromMarkSelect">印（軸）</label>
+                                <select id="fromMarkSelect">
+                                    <!-- JSで印リストから埋め込む -->
+                                </select>
+                            </div>
+                            <div class="preview-form-row">
+                                <label>印（相手）</label>
+                                <div class="to-marks" id="toMarksContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- フォーメーション設定 -->
+                        <div id="formationSettings" style="display:none;">
+                            <div class="preview-form-row">
+                                <label>1着/1頭目</label>
+                                <div class="to-marks" id="formation1stContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                            <div class="preview-form-row">
+                                <label>2着/2頭目</label>
+                                <div class="to-marks" id="formation2ndContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                            <div class="preview-form-row" id="formation3rdRow" style="display:none;">
+                                <label>3着/3頭目</label>
+                                <div class="to-marks" id="formation3rdContainer">
+                                    <!-- JSでチェックボックスを描画 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="preview-generate-button" id="generateButton">
+                        印から買い目を生成
+                    </button>
+
+                    <div class="preview-combos-header">
+                        <div><strong>生成結果</strong> <span id="comboCountLabel">0点</span></div>
+                        <div id="comboInfoLabel"></div>
+                    </div>
+                    <div class="preview-combo-container" id="comboContainer">
+                        <!-- JSでコンビをchip表示 -->
+                    </div>
+
+                    <button class="preview-add-button" id="addToBetListButton">
+                        今回生成した買い目をリストに追加
+                    </button>
+
+                    <button class="preview-ai-button" id="aiButton" disabled>
+                        <span class="icon">🤖</span>
+                        AI資金配分（Powered by Gemini）
+                    </button>
+
+                    <div class="ai-result-toast" id="aiResultToast"></div>
+
+                    <!-- AI配分結果表示エリア -->
+                    <div class="ai-allocation-result" id="aiAllocationResult">
+                        <div class="ai-result-header">AI配分結果 - Powered by Gemini</div>
+                        <div class="ai-result-summary">
+                            <div class="ai-summary-card">
+                                <div class="ai-summary-label">合計予算</div>
+                                <div class="ai-summary-value" id="aiTotalBudget">¥0</div>
+                            </div>
+                            <div class="ai-summary-card">
+                                <div class="ai-summary-label">最大払戻想定</div>
+                                <div class="ai-summary-value" id="aiMaxReturn">¥0</div>
+                            </div>
+                            <div class="ai-summary-card">
+                                <div class="ai-summary-label">リスクバランス</div>
+                                <div class="ai-summary-value" id="aiRiskLevel">-</div>
+                            </div>
+                        </div>
+                        <div class="ai-risk-chart" id="aiRiskChart">
+                            <canvas class="risk-donut" id="riskDonutCanvas" width="44" height="44"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 買い目リスト -->
+                <div class="betlist-wrapper">
+                    <div class="betlist-header-top">
+                        <div class="betlist-title">買い目リスト（AI配分対象）</div>
+                        <div class="betlist-summary">
+                            合計点数<span class="value" id="betCountSummary">0</span> /
+                            合計金額<span class="value" id="betAmountSummary">0円</span>
+                            <span class="betlist-risk-badge" id="riskBadge">
+                                リスク: 中
+                            </span>
+                        </div>
+                    </div>
+                    <div class="betlist-table-header">
+                        <div>券種</div>
+                        <div>組み合わせ</div>
+                        <div>オッズ</div>
+                        <div>金額</div>
+                        <div></div>
+                    </div>
+                    <div class="betlist-rows" id="betListContainer">
+                        <!-- JSで行を生成 -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            競馬予測支援ツール - Supabase連携・AI配分機能搭載
+        </footer>
+    </div>
+
+    <script>
+    // ============================
+    // Supabase初期化
+    // ============================
+    const SUPABASE_URL = 'https://bjghrcagqvfdthgbedrf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZ2hyY2FncXZmZHRoZ2JlZHJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MTYzNDEsImV4cCI6MjA3ODk5MjM0MX0.g5kZXllm2SjZ1VBUawNRIz0JHCtZoD4lhJp2qYzCZng';
+
+    window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ============================
+    // データローダー関数
+    // ============================
+    async function loadAllRaceData() {
+        try {
+            const supabase = window.supabaseClient;
+            const { data, error } = await supabase
+                .from('race_data_json')
+                .select('race_id, data')
+                .order('race_id');
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('レースデータ取得エラー:', error);
+            return [];
+        }
+    }
+
+    async function loadSingleRaceData(raceId) {
+        try {
+            const supabase = window.supabaseClient;
+            const { data, error } = await supabase
+                .from('race_data_json')
+                .select('data')
+                .eq('race_id', raceId)
+                .single();
+
+            if (error) throw error;
+            return data.data;
+        } catch (error) {
+            console.error('レースデータ読込エラー:', error);
+            throw error;
+        }
+    }
+
+    async function loadOddsData(raceId) {
+        try {
+            const supabase = window.supabaseClient;
+            const { data, error } = await supabase
+                .from('race_odds_json')
+                .select('data')
+                .eq('race_id', raceId)
+                .single();
+
+            if (error) {
+                console.warn('オッズデータなし:', raceId);
+                return [];
+            }
+            return data.data || [];
+        } catch (error) {
+            console.error('オッズデータ読込エラー:', error);
+            return [];
+        }
+    }
+
+    // ============================
+    // グローバル変数
+    // ============================
+    let currentRaceData = null;
+    let currentOddsData = null;
+    let horses = [];
+    let selectedRaceId = null;
+
+    const marks = [
+        { id: "honmei", symbol: "◎", name: "本命", color: "#e53935" },
+        { id: "taikou", symbol: "○", name: "対抗", color: "#1e88e5" },
+        { id: "tanhole", symbol: "▲", name: "単穴", color: "#43a047" },
+        { id: "renshita", symbol: "△", name: "連下", color: "#757575" },
+        { id: "chu", symbol: "☆", name: "注", color: "#8e24aa" },
+        { id: "osae", symbol: "抑", name: "抑え", color: "#9e9d24" }
+    ];
+
+    const horseMarkMap = {};
+    let selectedMarkId = "honmei";
+    let currentSort = "popularity";  // デフォルトを人気順に変更
+
+    const aiFilterState = {
+        minAiWin: null,
+        minAiQuinella: null,
+        minAiShow: null,
+        minFinal: null
+    };
+
+    let generatedCombos = [];
+    let generatedBetType = null;
+    let betList = [];
+    let betIdCounter = 1;
+
+    const betTypeLabelMap = {
+        tanshou: "単勝",
+        fukushou: "複勝",
+        umaren: "馬連",
+        umatan: "馬単",
+        wide: "ワイド",
+        sanrenpuku: "三連複",
+        sanrentan: "三連単"
+    };
+
+    const betTypeToOddsType = {
+        tanshou: "tfw",
+        fukushou: "tfw",
+        umaren: "umaren",
+        umatan: "umatan",
+        wide: "wide",
+        sanrenpuku: "sanrenpuku",
+        sanrentan: "sanrentan"
+    };
+
+    // ============================
+    // LocalStorage管理
+    // ============================
+    const STORAGE_KEY_PREFIX = 'horse_mark_builder_';
+    const STORAGE_EXPIRY_HOURS = 24;
+
+    function saveToLocalStorage(key, data) {
+        const timestamp = Date.now();
+        const expiryTime = timestamp + (STORAGE_EXPIRY_HOURS * 60 * 60 * 1000);
+        const storageData = {
+            data: data,
+            timestamp: timestamp,
+            expiry: expiryTime
+        };
+        try {
+            localStorage.setItem(STORAGE_KEY_PREFIX + key, JSON.stringify(storageData));
+            return true;
+        } catch (e) {
+            console.error('LocalStorage保存エラー:', e);
+            return false;
+        }
+    }
+
+    function loadFromLocalStorage(key) {
+        try {
+            const item = localStorage.getItem(STORAGE_KEY_PREFIX + key);
+            if (!item) return null;
+
+            const storageData = JSON.parse(item);
+            const now = Date.now();
+
+            if (now > storageData.expiry) {
+                localStorage.removeItem(STORAGE_KEY_PREFIX + key);
+                return null;
+            }
+
+            return storageData.data;
+        } catch (e) {
+            console.error('LocalStorage読込エラー:', e);
+            return null;
+        }
+    }
+
+    function clearExpiredStorage() {
+        const now = Date.now();
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.startsWith(STORAGE_KEY_PREFIX)) {
+                try {
+                    const item = localStorage.getItem(key);
+                    const storageData = JSON.parse(item);
+                    if (now > storageData.expiry) {
+                        localStorage.removeItem(key);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(key);
+                }
+            }
+        });
+    }
+
+    // ============================
+    // レースデータ処理
+    // ============================
+    function processRaceData(raceData) {
+        horses = [];
+
+        if (!raceData || !raceData.horses) {
+            console.error('馬データがありません');
+            return;
+        }
+
+        // まず人気順を計算（オッズから）
+        const popularityMap = {};
+        if (currentOddsData && currentOddsData.length > 0) {
+            const tanshoData = currentOddsData.find(o => o.odds_type === 'tfw');
+            if (tanshoData && tanshoData.data && tanshoData.data.tansho) {
+                // オッズで昇順ソート
+                const sortedByOdds = [...tanshoData.data.tansho].sort((a, b) => {
+                    const oddsA = parseFloat(a.odds) || 999;
+                    const oddsB = parseFloat(b.odds) || 999;
+                    return oddsA - oddsB;
+                });
+
+                // 人気順を馬番号にマッピング
+                sortedByOdds.forEach((item, index) => {
+                    popularityMap[item.horse_num] = index + 1;
+                });
+            }
+        }
+
+        raceData.horses.forEach(horse => {
+            const horseNum = parseInt(horse.horse_number);
+
+            // predictionsからAIスコアを取得（100倍して小数点以下2桁まで保持）
+            let aiWin = 50.00;
+            let aiQuinella = 50.00;
+            let aiShow = 50.00;
+
+            if (horse.predictions) {
+                // 例: 0.9116055613436549 -> 91.16
+                aiWin = Math.round((horse.predictions.win_rate || 0.5) * 10000) / 100;
+                aiQuinella = Math.round((horse.predictions.place_rate || 0.5) * 10000) / 100;
+                aiShow = Math.round((horse.predictions.show_rate || 0.5) * 10000) / 100;
+            }
+
+            // indicesから最終スコアを取得（そのまま使用）
+            let finalScore = 50.0;
+            if (horse.indices && horse.indices.final_score) {
+                finalScore = horse.indices.final_score;
+            }
+
+            // 人気順を取得（なければ馬番号を使用）
+            const popularity = popularityMap[String(horseNum)] || horseNum;
+
+            // オッズを取得
+            let winOdds = 10.0;
+            if (currentOddsData && currentOddsData.length > 0) {
+                const tanshoData = currentOddsData.find(o => o.odds_type === 'tfw');
+                if (tanshoData && tanshoData.data && tanshoData.data.tansho) {
+                    const oddsRow = tanshoData.data.tansho.find(r => String(r.horse_num) === String(horseNum));
+                    if (oddsRow) {
+                        winOdds = parseFloat(oddsRow.odds);
+                    }
+                }
+            }
+
+            horses.push({
+                id: horseNum,
+                name: horse.horse_name || `馬${horseNum}`,
+                popularity: popularity,
+                winOdds: winOdds,
+                aiWin: aiWin,
+                aiQuinella: aiQuinella,
+                aiShow: aiShow,
+                finalScore: finalScore
+            });
+
+            horseMarkMap[horseNum] = null;
+        });
+
+        // 人気順でソート（初期表示用）
+        horses.sort((a, b) => a.popularity - b.popularity);
+    }
+
+    // ============================
+    // UI描画関数
+    // ============================
+    function getMarkById(id) {
+        return marks.find(m => m.id === id) || null;
+    }
+
+    function getHorseById(id) {
+        return horses.find(h => h.id === id) || null;
+    }
+
+    function getAssignedHorseIds(markId) {
+        return Object.keys(horseMarkMap)
+            .filter(hid => horseMarkMap[hid] === markId)
+            .map(hid => parseInt(hid, 10));
+    }
+
+    function getHorseIdsByMarkIds(markIds) {
+        const set = new Set();
+        Object.entries(horseMarkMap).forEach(([hid, mid]) => {
+            if (markIds.includes(mid)) {
+                set.add(parseInt(hid, 10));
+            }
+        });
+        return Array.from(set);
+    }
+
+    function formatCombo(combo) {
+        return combo.join("-");
+    }
+
+    function gradeOdds(odds) {
+        if (odds == null || isNaN(odds)) return "-";
+        if (odds < 5) return "A";
+        if (odds < 15) return "B";
+        return "C";
+    }
+
+    function renderMarks() {
+        const container = document.getElementById("marksContainer");
+        container.innerHTML = "";
+
+        marks.forEach(mark => {
+            const row = document.createElement("div");
+            row.className = "mark-row" + (mark.id === selectedMarkId ? " selected" : "");
+            row.dataset.markId = mark.id;
+
+            const label = document.createElement("div");
+            label.className = "mark-label";
+
+            const colorBar = document.createElement("div");
+            colorBar.className = "mark-color-bar";
+            colorBar.style.background = mark.color;
+
+            const symbol = document.createElement("div");
+            symbol.className = "mark-symbol";
+            symbol.textContent = mark.symbol;
+
+            const name = document.createElement("div");
+            name.className = "mark-name";
+            name.textContent = mark.name;
+
+            label.appendChild(colorBar);
+            label.appendChild(symbol);
+            label.appendChild(name);
+
+            const horsesWrap = document.createElement("div");
+            horsesWrap.className = "mark-horses";
+
+            const assignedIds = getAssignedHorseIds(mark.id);
+            assignedIds.forEach(hid => {
+                const horse = getHorseById(hid);
+                if (!horse) return;
+
+                const pill = document.createElement("div");
+                pill.className = "mark-horse-pill";
+
+                const no = document.createElement("span");
+                no.className = "mark-horse-no";
+                no.textContent = horse.id;
+
+                const nm = document.createElement("span");
+                nm.textContent = horse.name;
+
+                const ai = document.createElement("span");
+                ai.className = "mark-ai-score";
+                ai.innerHTML = `人${horse.popularity} 単${horse.aiWin.toFixed(0)} 連${horse.aiQuinella.toFixed(0)} 複${horse.aiShow.toFixed(0)} 最${horse.finalScore.toFixed(1)}`;
+
+                pill.appendChild(no);
+                pill.appendChild(nm);
+                pill.appendChild(ai);
+                horsesWrap.appendChild(pill);
+            });
+
+            row.appendChild(label);
+            row.appendChild(horsesWrap);
+
+            row.addEventListener("click", () => {
+                selectedMarkId = mark.id;
+                document.getElementById('fromMarkSelect').value = mark.id;
+                renderMarks();
+                renderCardBox();
+            });
+
+            container.appendChild(row);
+        });
+    }
+
+    function renderCardBox() {
+        const grid = document.getElementById("cardBoxGrid");
+        grid.innerHTML = "";
+
+        let viewList = horses.slice();
+
+        // フィルタリング
+        viewList = viewList.filter(h => {
+            if (aiFilterState.minAiWin !== null && h.aiWin < aiFilterState.minAiWin) return false;
+            if (aiFilterState.minAiQuinella !== null && h.aiQuinella < aiFilterState.minAiQuinella) return false;
+            if (aiFilterState.minAiShow !== null && h.aiShow < aiFilterState.minAiShow) return false;
+            if (aiFilterState.minFinal !== null && h.finalScore < aiFilterState.minFinal) return false;
+            return true;
+        });
+
+        // ソート
+        if (currentSort === "final") {
+            viewList.sort((a, b) => b.finalScore - a.finalScore);
+        } else if (currentSort === "popularity") {
+            viewList.sort((a, b) => a.popularity - b.popularity);
+        } else if (currentSort === "win") {
+            viewList.sort((a, b) => b.aiWin - a.aiWin);
+        } else if (currentSort === "quinella") {
+            viewList.sort((a, b) => b.aiQuinella - a.aiQuinella);
+        } else if (currentSort === "show") {
+            viewList.sort((a, b) => b.aiShow - a.aiShow);
+        }
+
+        viewList.forEach(horse => {
+            const card = document.createElement("div");
+            const assignedMarkId = horseMarkMap[horse.id];
+            card.className = "horse-card" + (assignedMarkId ? " selected" : "");
+            card.dataset.horseId = horse.id;
+
+            const header = document.createElement("div");
+            header.className = "horse-card-header";
+
+            const noBadge = document.createElement("div");
+            noBadge.className = "horse-no-badge";
+            noBadge.textContent = horse.id;
+
+            const nameEl = document.createElement("div");
+            nameEl.className = "horse-name";
+            nameEl.textContent = horse.name;
+
+            header.appendChild(noBadge);
+            header.appendChild(nameEl);
+
+            if (assignedMarkId) {
+                const mark = getMarkById(assignedMarkId);
+                if (mark) {
+                    const markTag = document.createElement("div");
+                    markTag.className = "horse-tagmark";
+                    markTag.textContent = mark.symbol;
+                    header.appendChild(markTag);
+                }
+            }
+
+            const meta = document.createElement("div");
+            meta.className = "horse-card-meta";
+
+            const pop = document.createElement("div");
+            pop.innerHTML = '<span class="horse-meta-label">人気</span>' + horse.popularity + "人";
+
+            const odds = document.createElement("div");
+            odds.innerHTML = '<span class="horse-meta-label">単勝</span>' + horse.winOdds.toFixed(1) + "倍";
+
+            meta.appendChild(pop);
+            meta.appendChild(odds);
+
+            const aiChip = document.createElement("div");
+            aiChip.className = "horse-ai-chip";
+            // 2行表示に改行
+            aiChip.innerHTML = `単${horse.aiWin.toFixed(2)} / 連${horse.aiQuinella.toFixed(2)}<br>` +
+                              `複${horse.aiShow.toFixed(2)} / 最${horse.finalScore.toFixed(2)}`;
+
+            card.appendChild(header);
+            card.appendChild(meta);
+            card.appendChild(aiChip);
+
+            card.addEventListener("click", () => {
+                onHorseCardClick(horse.id);
+            });
+
+            grid.appendChild(card);
+        });
+    }
+
+    function onHorseCardClick(horseId) {
+        if (!selectedMarkId) return;
+
+        const currentMark = horseMarkMap[horseId];
+        if (currentMark === selectedMarkId) {
+            horseMarkMap[horseId] = null;
+        } else {
+            horseMarkMap[horseId] = selectedMarkId;
+        }
+
+        renderMarks();
+        renderCardBox();
+
+        generatedCombos = [];
+        generatedBetType = null;
+        renderComboResult();
+    }
+
+    // 続く...（文字数制限のため分割）
+
+    // ============================
+    // 買い目生成フォーム
+    // ============================
+    function setupPreviewControls() {
+        const fromSel = document.getElementById("fromMarkSelect");
+        const toContainer = document.getElementById("toMarksContainer");
+        const formation1st = document.getElementById("formation1stContainer");
+        const formation2nd = document.getElementById("formation2ndContainer");
+        const formation3rd = document.getElementById("formation3rdContainer");
+
+        // 流し用コントロール
+        fromSel.innerHTML = "";
+        marks.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = m.symbol + " " + m.name;
+            fromSel.appendChild(opt);
+        });
+        fromSel.value = selectedMarkId;
+
+        fromSel.addEventListener("change", e => {
+            selectedMarkId = e.target.value;
+            renderMarks();
+            renderCardBox();
+        });
+
+        toContainer.innerHTML = "";
+        marks.forEach(m => {
+            const wrap = document.createElement("label");
+            wrap.className = "to-mark-chip";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = m.id;
+            if (m.id !== "honmei") {
+                checkbox.checked = true;
+            }
+
+            const text = document.createElement("span");
+            text.textContent = m.symbol;
+
+            wrap.appendChild(checkbox);
+            wrap.appendChild(text);
+            toContainer.appendChild(wrap);
+        });
+
+        // フォーメーション用コントロール
+        [formation1st, formation2nd, formation3rd].forEach(container => {
+            container.innerHTML = "";
+            marks.forEach(m => {
+                const wrap = document.createElement("label");
+                wrap.className = "to-mark-chip";
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = m.id;
+
+                const text = document.createElement("span");
+                text.textContent = m.symbol;
+
+                wrap.appendChild(checkbox);
+                wrap.appendChild(text);
+                container.appendChild(wrap);
+            });
+        });
+    }
+
+    function getSelectedToMarkIds() {
+        const container = document.getElementById("toMarksContainer");
+        const checks = container.querySelectorAll("input[type='checkbox']");
+        const ids = [];
+        checks.forEach(ch => {
+            if (ch.checked) ids.push(ch.value);
+        });
+        return ids;
+    }
+
+    function generateCombosFromMarks() {
+        const betType = document.getElementById("betTypeSelect").value;
+        const fromMarkId = document.getElementById("fromMarkSelect").value;
+        const toMarkIds = getSelectedToMarkIds();
+
+        const axisIds = getAssignedHorseIds(fromMarkId);
+        const partnerIds = getHorseIdsByMarkIds(toMarkIds);
+
+        if (axisIds.length === 0) {
+            showToast("軸の印に馬がいません", "error");
+            generatedCombos = [];
+            renderComboResult();
+            return;
+        }
+
+        if (partnerIds.length === 0 && betType !== "tanshou" && betType !== "fukushou") {
+            showToast("相手の印を選んでください", "error");
+            generatedCombos = [];
+            renderComboResult();
+            return;
+        }
+
+        const combosSet = new Set();
+
+        function addCombo(arr, ordered) {
+            const c = arr.slice();
+            if (!ordered) {
+                c.sort((a, b) => a - b);
+            }
+            const key = c.join("-");
+            combosSet.add(key);
+        }
+
+        axisIds.forEach(axisId => {
+            const filteredPartners = partnerIds.filter(pid => pid !== axisId);
+
+            switch (betType) {
+                case "tanshou":
+                case "fukushou": {
+                    const targets = new Set([...axisIds, ...partnerIds]);
+                    targets.forEach(id => addCombo([id], false));
+                    break;
+                }
+                case "umaren":
+                case "wide": {
+                    filteredPartners.forEach(pid => {
+                        addCombo([axisId, pid], false);
+                    });
+                    break;
+                }
+                case "umatan": {
+                    filteredPartners.forEach(pid => {
+                        addCombo([axisId, pid], true);
+                    });
+                    break;
+                }
+                case "sanrenpuku": {
+                    for (let i = 0; i < filteredPartners.length; i++) {
+                        for (let j = i + 1; j < filteredPartners.length; j++) {
+                            addCombo([axisId, filteredPartners[i], filteredPartners[j]], false);
+                        }
+                    }
+                    break;
+                }
+                case "sanrentan": {
+                    for (let i = 0; i < filteredPartners.length; i++) {
+                        for (let j = 0; j < filteredPartners.length; j++) {
+                            if (i === j) continue;
+                            addCombo([axisId, filteredPartners[i], filteredPartners[j]], true);
+                        }
+                    }
+                    break;
+                }
+            }
+        });
+
+        generatedCombos = Array.from(combosSet).map(key =>
+            key.split("-").map(x => parseInt(x, 10))
+        );
+        generatedBetType = betType;
+
+        renderComboResult();
+    }
+
+    // フォーメーション買い目生成
+    function generateFormationCombos() {
+        const betType = document.getElementById("betTypeSelect").value;
+
+        // 各フレームの選択印を取得
+        const pos1Marks = Array.from(document.querySelectorAll("#formation1stContainer input:checked")).map(cb => cb.value);
+        const pos2Marks = Array.from(document.querySelectorAll("#formation2ndContainer input:checked")).map(cb => cb.value);
+        const pos3Marks = Array.from(document.querySelectorAll("#formation3rdContainer input:checked")).map(cb => cb.value);
+
+        // 印から馬番号を取得
+        const pos1Horses = getHorseIdsByMarkIds(pos1Marks);
+        const pos2Horses = getHorseIdsByMarkIds(pos2Marks);
+        const pos3Horses = getHorseIdsByMarkIds(pos3Marks);
+
+        // 検証
+        if (betType === "tanshou" || betType === "fukushou") {
+            if (pos1Horses.length === 0) {
+                showToast("1頭目の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "umaren" || betType === "wide") {
+            if (pos1Horses.length + pos2Horses.length < 2) {
+                showToast("合計2頭以上選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "umatan") {
+            if (pos1Horses.length === 0 || pos2Horses.length === 0) {
+                showToast("1着と2着の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        } else if (betType === "sanrenpuku" || betType === "sanrentan") {
+            if (pos1Horses.length === 0 || pos2Horses.length === 0 || pos3Horses.length === 0) {
+                showToast("各着順の印を選んでください", "error");
+                generatedCombos = [];
+                renderComboResult();
+                return;
+            }
+        }
+
+        const combosSet = new Set();
+
+        switch(betType) {
+            case "tanshou":
+            case "fukushou":
+                pos1Horses.forEach(h => combosSet.add(String(h)));
+                break;
+
+            case "umaren":
+            case "wide":
+                // フォーメーション形式
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        if (h1 !== h2) {
+                            const sorted = [h1, h2].sort((a,b) => a - b);
+                            combosSet.add(sorted.join("-"));
+                        }
+                    });
+                });
+                break;
+
+            case "umatan":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        if (h1 !== h2) {
+                            combosSet.add(h1 + "-" + h2);
+                        }
+                    });
+                });
+                break;
+
+            case "sanrenpuku":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        pos3Horses.forEach(h3 => {
+                            if (h1 !== h2 && h2 !== h3 && h1 !== h3) {
+                                const sorted = [h1, h2, h3].sort((a,b) => a - b);
+                                combosSet.add(sorted.join("-"));
+                            }
+                        });
+                    });
+                });
+                break;
+
+            case "sanrentan":
+                pos1Horses.forEach(h1 => {
+                    pos2Horses.forEach(h2 => {
+                        pos3Horses.forEach(h3 => {
+                            if (h1 !== h2 && h2 !== h3 && h1 !== h3) {
+                                combosSet.add(h1 + "-" + h2 + "-" + h3);
+                            }
+                        });
+                    });
+                });
+                break;
+        }
+
+        generatedBetType = betType;
+        generatedCombos = Array.from(combosSet).map(key => {
+            return key.split("-").map(n => parseInt(n, 10));
+        });
+
+        renderComboResult();
+        showToast(`フォーメーション：${generatedCombos.length}点生成しました`, "success");
+    }
+
+    function renderComboResult() {
+        const container = document.getElementById("comboContainer");
+        const countLabel = document.getElementById("comboCountLabel");
+        const infoLabel = document.getElementById("comboInfoLabel");
+
+        container.innerHTML = "";
+        countLabel.textContent = generatedCombos.length + "点";
+
+        if (!generatedBetType) {
+            infoLabel.textContent = "";
+        } else {
+            infoLabel.textContent = betTypeLabelMap[generatedBetType] || "";
+        }
+
+        if (generatedCombos.length === 0) {
+            const msg = document.createElement("div");
+            msg.style.color = "#999";
+            msg.style.fontSize = "9px";
+            msg.textContent = "印を付けて「印から買い目を生成」を押してください";
+            container.appendChild(msg);
+            return;
+        }
+
+        if (generatedCombos.length > 100) {
+            const warning = document.createElement("div");
+            warning.style.color = "#c62828";
+            warning.style.fontSize = "9px";
+            warning.textContent = `買い目が多すぎます（${generatedCombos.length}点）`;
+            container.appendChild(warning);
+        }
+
+        generatedCombos.forEach(c => {
+            const chip = document.createElement("div");
+            chip.className = "preview-combo-chip";
+            chip.textContent = formatCombo(c);
+            container.appendChild(chip);
+        });
+    }
+
+    // ============================
+    // オッズ処理
+    // ============================
+    function findOddsForCombo(betType, combo) {
+        if (!currentOddsData) {
+            return { text: "-", numeric: null, grade: "-" };
+        }
+
+        const oddsType = betTypeToOddsType[betType];
+        if (!oddsType) {
+            return { text: "-", numeric: null, grade: "-" };
+        }
+
+        const oddsForType = currentOddsData.find(o => o.odds_type === oddsType);
+        if (!oddsForType || !oddsForType.data) {
+            return { text: "-", numeric: null, grade: "-" };
+        }
+
+        if (oddsType === "tfw") {
+            const horseNum = String(combo[0]);
+
+            if (betType === "tanshou") {
+                const row = (oddsForType.data.tansho || []).find(r => String(r.horse_num) === horseNum);
+                if (!row) return { text: "-", numeric: null, grade: "-" };
+                const val = parseFloat(row.odds);
+                const grade = gradeOdds(val);
+                return { text: val.toFixed(1) + "倍", numeric: val, grade };
+            }
+
+            if (betType === "fukushou") {
+                const row = (oddsForType.data.fukusho || []).find(r => String(r.horse_num) === horseNum);
+                if (!row || !row.odds) return { text: "-", numeric: null, grade: "-" };
+                const min = parseFloat(row.odds.min);
+                const max = parseFloat(row.odds.max);
+                const avg = (min + max) / 2;
+                const grade = gradeOdds(avg);
+                return { text: min.toFixed(1) + " - " + max.toFixed(1), numeric: avg, grade };
+            }
+        }
+
+        const key = combo.join("-");
+        const list = oddsForType.data.combinations || [];
+        const row = list.find(c => c.combination === key);
+
+        if (!row) {
+            return { text: "-", numeric: null, grade: "-" };
+        }
+
+        if (typeof row.odds === "object") {
+            const min = parseFloat(row.odds.min);
+            const max = parseFloat(row.odds.max || row.odds.min);
+            const avg = (min + max) / 2;
+            const grade = gradeOdds(avg);
+            return { text: min.toFixed(1) + " - " + max.toFixed(1), numeric: avg, grade };
+        } else {
+            const val = parseFloat(row.odds);
+            const grade = gradeOdds(val);
+            return { text: val.toFixed(1) + "倍", numeric: val, grade };
+        }
+    }
+
+    // ============================
+    // 買い目リスト管理
+    // ============================
+    function addGeneratedCombosToBetList() {
+        if (!generatedBetType || generatedCombos.length === 0) {
+            showToast("先に印から買い目を生成してください", "error");
+            return;
+        }
+
+        const betType = generatedBetType;
+        const betTypeLabel = betTypeLabelMap[betType] || betType;
+
+        let addedCount = 0;
+        generatedCombos.forEach(combo => {
+            const comboKey = combo.join("-");
+
+            const exists = betList.some(b => b.betType === betType && b.comboKey === comboKey);
+            if (exists) return;
+
+            const oddsInfo = findOddsForCombo(betType, combo);
+
+            betList.push({
+                id: betIdCounter++,
+                betType,
+                betTypeLabel,
+                combo: combo.slice(),
+                comboKey,
+                oddsText: oddsInfo.text,
+                oddsNumeric: oddsInfo.numeric,
+                grade: oddsInfo.grade,
+                stake: 0
+            });
+            addedCount++;
+        });
+
+        if (addedCount > 0) {
+            showToast(`${addedCount}点を買い目リストに追加しました`, "success");
+        } else {
+            showToast("すでに同じ買い目が登録されています", "info");
+        }
+
+        renderBetList();
+    }
+
+    function removeBet(id) {
+        betList = betList.filter(b => b.id !== id);
+        renderBetList();
+    }
+
+    function renderBetList() {
+        const container = document.getElementById("betListContainer");
+        const countSummary = document.getElementById("betCountSummary");
+        const amountSummary = document.getElementById("betAmountSummary");
+        const riskBadge = document.getElementById("riskBadge");
+
+        container.innerHTML = "";
+
+        if (betList.length === 0) {
+            const row = document.createElement("div");
+            row.style.fontSize = "9px";
+            row.style.color = "#999";
+            row.style.padding = "4px 6px";
+            row.textContent = "ここに買い目が追加されます";
+            container.appendChild(row);
+        } else {
+            betList.forEach(bet => {
+                const row = document.createElement("div");
+                row.className = "betlist-row";
+
+                if (bet.grade === "A") row.classList.add("grade-A");
+                if (bet.grade === "B") row.classList.add("grade-B");
+                if (bet.grade === "C") row.classList.add("grade-C");
+
+                const typeCell = document.createElement("div");
+                typeCell.className = "betlist-bettype";
+                typeCell.textContent = bet.betTypeLabel;
+
+                const comboCell = document.createElement("div");
+                comboCell.className = "betlist-combination";
+                if (bet.betType === "umatan" || bet.betType === "sanrentan") {
+                    comboCell.textContent = bet.combo.join("→");
+                } else {
+                    comboCell.textContent = bet.combo.join("-");
+                }
+
+                const oddsCell = document.createElement("div");
+                oddsCell.className = "betlist-odds";
+                oddsCell.textContent = bet.oddsText || "-";
+
+                const stakeCell = document.createElement("div");
+                stakeCell.className = "betlist-stake";
+                if (bet.stake > 0) {
+                    stakeCell.classList.add("ai-allocated");
+                    stakeCell.textContent = "¥" + bet.stake.toLocaleString();
+                } else {
+                    stakeCell.textContent = "-";
+                }
+
+                const removeCell = document.createElement("div");
+                removeCell.className = "betlist-remove";
+                const removeBtn = document.createElement("button");
+                removeBtn.textContent = "×";
+                removeBtn.addEventListener("click", () => removeBet(bet.id));
+                removeCell.appendChild(removeBtn);
+
+                row.appendChild(typeCell);
+                row.appendChild(comboCell);
+                row.appendChild(oddsCell);
+                row.appendChild(stakeCell);
+                row.appendChild(removeCell);
+
+                container.appendChild(row);
+            });
+        }
+
+        const totalCount = betList.length;
+        const totalAmount = betList.reduce((sum, b) => sum + (b.stake || 0), 0);
+        countSummary.textContent = totalCount;
+        amountSummary.textContent = "¥" + totalAmount.toLocaleString();
+
+        const avgOdds = (() => {
+            const arr = betList.map(b => b.oddsNumeric).filter(v => v != null && !isNaN(v));
+            if (arr.length === 0) return null;
+            const s = arr.reduce((a, b) => a + b, 0);
+            return s / arr.length;
+        })();
+
+        let riskLabel = "中";
+        let riskColor = "#f9a825";
+        if (avgOdds != null) {
+            if (avgOdds < 5) {
+                riskLabel = "低";
+                riskColor = "#2e7d32";
+            } else if (avgOdds > 20) {
+                riskLabel = "高";
+                riskColor = "#c62828";
+            }
+        }
+
+        riskBadge.textContent = "リスク: " + riskLabel;
+        riskBadge.style.color = riskColor;
+    }
+
+    // ============================
+    // AI資金配分
+    // ============================
+    async function executeAIAllocation() {
+        const apiKey = document.getElementById('geminiApiKey').value;
+        const selectedModel = document.getElementById('geminiModel').value;
+        const budget = parseInt(document.getElementById('budgetInput').value, 10) || 0;
+
+        if (!apiKey) {
+            showToast("Gemini APIキーを入力してください", "error");
+            return;
+        }
+
+        if (betList.length === 0) {
+            showToast("買い目リストに1点以上追加してください", "error");
+            return;
+        }
+
+        if (budget <= 0) {
+            showToast("予算を入力してください", "error");
+            return;
+        }
+
+        const betData = betList.map(bet => {
+            // 各馬の印を取得
+            const horseMarks = bet.combo.map(horseNum => {
+                const markId = horseMarkMap[horseNum];
+                const mark = marks.find(m => m.id === markId);
+                return mark ? mark.symbol : "無印";
+            });
+
+            return {
+                id: bet.id,
+                type: bet.betType,
+                combination: bet.combo.join("-"),
+                odds: bet.oddsNumeric || 10,
+                grade: bet.grade,
+                marks: horseMarks
+            };
+        });
+
+        // 馬印配置データを作成
+        const markData = {};
+        marks.forEach(mark => {
+            const assignedHorses = getAssignedHorseIds(mark.id);
+            if (assignedHorses.length > 0) {
+                markData[mark.symbol] = {
+                    name: mark.name,
+                    horses: assignedHorses
+                };
+            }
+        });
+
+        const prompt = `
+以下の競馬の買い目に対して、予算${budget}円を最適配分してください。
+
+買い目データ（JSON形式）:
+${JSON.stringify(betData, null, 2)}
+
+馬印配置データ:
+${JSON.stringify(markData, null, 2)}
+
+印の一般的な意味（参考）:
+◎本命、○対抗、▲単穴、△連下、☆注、抑え
+
+配分の条件：
+1. 各買い目は最低100円、100円単位で配分
+2. 合計金額は必ず予算${budget}円ちょうどになること
+3. トリガミ（的中しても投資総額を回収できない）を極力回避すること。
+-またトリガミは予算合計で考慮すること。単体馬券では計算はするがトータルで見る。
+-どこ当たってもとりあえず130％は回収できる。くらいが理想
+4. 上位印の馬券で回収率を最大限した上で、抑えや穴からの馬券で夢も見る
+
+配分の方針：
+- 馬印配置とオッズを総合的に分析して、ユーザーの意図を理解した配分を行う
+- 買い目の点数、オッズ分布、馬印の組み合わせから最適な戦略を判断
+- トリガミ回避を優先しつつ、効率的な資金配分を実現
+
+必ず以下のJSON形式で回答してください（説明や補足は一切不要）：
+{
+  "allocations": [
+    {"id": 1, "amount": 金額},
+    ...
+  ],
+  "risk_level": "低/中/高",
+  "expected_max_return": 最大想定払戻金額
+}
+`;
+
+        try {
+            showToast("AI配分を実行中...", "info");
+            document.getElementById('aiButton').disabled = true;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.2,
+                        topK: 1,
+                        topP: 0.8,
+                        maxOutputTokens: 1024,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'API呼び出しエラー');
+            }
+
+            const data = await response.json();
+            const aiResponse = data.candidates[0].content.parts[0].text;
+
+            const jsonStr = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            const allocation = JSON.parse(jsonStr);
+
+            if (allocation.allocations) {
+                allocation.allocations.forEach(alloc => {
+                    const bet = betList.find(b => b.id === alloc.id);
+                    if (bet) {
+                        bet.stake = alloc.amount;
+                    }
+                });
+            }
+
+            renderBetList();
+            displayAIResult(allocation);
+
+            showToast("AI配分が完了しました", "success");
+
+        } catch (error) {
+            console.error('AI配分エラー:', error);
+            showToast("AI配分に失敗しました: " + error.message, "error");
+        } finally {
+            document.getElementById('aiButton').disabled = false;
+        }
+    }
+
+    function displayAIResult(allocation) {
+        const resultDiv = document.getElementById('aiAllocationResult');
+        resultDiv.style.display = 'block';
+
+        const totalBudget = document.getElementById('aiTotalBudget');
+        const budget = parseInt(document.getElementById('budgetInput').value, 10);
+        totalBudget.textContent = "¥" + budget.toLocaleString();
+
+        const maxReturn = document.getElementById('aiMaxReturn');
+        const expectedReturn = allocation.expected_max_return || 0;
+        maxReturn.textContent = "¥" + Math.round(expectedReturn).toLocaleString();
+
+        const riskLevel = document.getElementById('aiRiskLevel');
+        const riskText = allocation.risk_level || "中";
+        riskLevel.textContent = riskText;
+
+        let riskColor = "#1e88e5";
+        if (riskText === "低") riskColor = "#43a047";
+        if (riskText === "高") riskColor = "#e53935";
+        riskLevel.style.color = riskColor;
+
+        // 配分詳細を表示
+        let detailsDiv = document.getElementById('aiAllocationDetails');
+        if (!detailsDiv) {
+            detailsDiv = document.createElement('div');
+            detailsDiv.id = 'aiAllocationDetails';
+            detailsDiv.style.cssText = `
+                margin-top: 16px;
+                padding: 12px;
+                background: white;
+                border-radius: 8px;
+                max-height: 250px;
+                overflow-y: auto;
+                border: 1px solid #e0e0e0;
+            `;
+            resultDiv.appendChild(detailsDiv);
+        }
+
+        // 詳細ヘッダー
+        let detailsHTML = `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 2px solid #667eea; margin-bottom: 8px; font-weight: 700; font-size: 11px; color: #333;">
+                <div style="flex: 2;">買い目</div>
+                <div style="flex: 1; text-align: center;">オッズ</div>
+                <div style="flex: 1; text-align: right;">配分額</div>
+                <div style="flex: 1; text-align: right;">想定払戻</div>
+                <div style="flex: 1; text-align: right;">回収率</div>
+            </div>
+        `;
+
+        // 各買い目の詳細
+        allocation.allocations.forEach(alloc => {
+            const bet = betList.find(b => b.id === alloc.id);
+            if (bet) {
+                const expected = Math.floor(alloc.amount * (bet.oddsNumeric || 1));
+                const roi = Math.round((expected / alloc.amount) * 100);
+
+                // グレードに応じた背景色
+                let bgColor = '#ffffff';
+                if (bet.grade === 'A') bgColor = '#fff8e1';
+                if (bet.grade === 'B') bgColor = '#f1f8e9';
+                if (bet.grade === 'C') bgColor = '#e1f5fe';
+
+                detailsHTML += `
+                    <div style="display: flex; justify-content: space-between; padding: 10px 8px; margin-bottom: 4px; background: ${bgColor}; border-radius: 6px; font-size: 11px; align-items: center;">
+                        <div style="flex: 2; font-weight: 600;">
+                            <span style="color: #666; font-size: 10px;">${bet.betTypeLabel}</span>
+                            <span style="color: #333; font-weight: 700; margin-left: 4px;">${bet.combo.join("-")}</span>
+                        </div>
+                        <div style="flex: 1; text-align: center; color: #e53935; font-weight: 700;">
+                            ${bet.oddsText}
+                        </div>
+                        <div style="flex: 1; text-align: right; color: #43a047; font-weight: 700;">
+                            ¥${alloc.amount.toLocaleString()}
+                        </div>
+                        <div style="flex: 1; text-align: right; color: #1e88e5; font-weight: 700;">
+                            ¥${expected.toLocaleString()}
+                        </div>
+                        <div style="flex: 1; text-align: right; font-weight: 700; color: ${roi >= 300 ? '#e53935' : roi >= 200 ? '#ff9800' : '#666'};">
+                            ${roi}%
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        detailsDiv.innerHTML = detailsHTML;
+
+        drawRiskDonutChart(allocation);
+
+        // 配分結果テキストを生成（クリップボード用）
+        let resultText = `【AI配分結果】\n`;
+        resultText += `レース: ${selectedRaceId || ''}\n`;
+        resultText += `合計予算: ¥${budget.toLocaleString()}\n`;
+        resultText += `最大払戻想定: ¥${Math.round(expectedReturn).toLocaleString()}\n`;
+        resultText += `リスクレベル: ${riskText}\n\n`;
+        resultText += `【買い目配分詳細】\n`;
+
+        allocation.allocations.forEach(alloc => {
+            const bet = betList.find(b => b.id === alloc.id);
+            if (bet) {
+                const expected = Math.floor(alloc.amount * (bet.oddsNumeric || 1));
+                const roi = Math.round((expected / alloc.amount) * 100);
+                resultText += `${bet.betTypeLabel} ${bet.combo.join("-")} `;
+                resultText += `オッズ:${bet.oddsText} `;
+                resultText += `配分:¥${alloc.amount.toLocaleString()} `;
+                resultText += `想定払戻:¥${expected.toLocaleString()} `;
+                resultText += `回収率:${roi}%\n`;
+            }
+        });
+
+        // 統計情報を追加
+        const totalAllocated = allocation.allocations.reduce((sum, a) => sum + a.amount, 0);
+        const avgOdds = betList.reduce((sum, bet) => {
+            const alloc = allocation.allocations.find(a => a.id === bet.id);
+            return alloc ? sum + (bet.oddsNumeric || 0) * (alloc.amount / totalAllocated) : sum;
+        }, 0);
+
+        resultText += `\n【統計情報】\n`;
+        resultText += `配分買い目数: ${allocation.allocations.length}点\n`;
+        resultText += `平均オッズ: ${avgOdds.toFixed(1)}倍\n`;
+        resultText += `最高配分: ¥${Math.max(...allocation.allocations.map(a => a.amount)).toLocaleString()}\n`;
+        resultText += `最低配分: ¥${Math.min(...allocation.allocations.map(a => a.amount)).toLocaleString()}\n`;
+
+        // クリップボードコピーボタン
+        let copyBtn = document.getElementById('aiCopyBtn');
+        if (!copyBtn) {
+            copyBtn = document.createElement('button');
+            copyBtn.id = 'aiCopyBtn';
+            copyBtn.style.cssText = `
+                width: 100%;
+                margin-top: 12px;
+                padding: 10px 16px;
+                background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: transform 0.2s;
+            `;
+            copyBtn.addEventListener('mouseover', () => {
+                copyBtn.style.transform = 'translateY(-1px)';
+                copyBtn.style.boxShadow = '0 4px 8px rgba(76,175,80,0.3)';
+            });
+            copyBtn.addEventListener('mouseout', () => {
+                copyBtn.style.transform = 'translateY(0)';
+                copyBtn.style.boxShadow = 'none';
+            });
+            resultDiv.appendChild(copyBtn);
+        }
+
+        copyBtn.textContent = '📋 配分結果を詳細コピー';
+        copyBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(resultText);
+                showToast('配分結果をクリップボードにコピーしました', 'success');
+                copyBtn.textContent = '✅ コピー完了！';
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 配分結果を詳細コピー';
+                }, 2000);
+            } catch (err) {
+                // フォールバック
+                const textarea = document.createElement('textarea');
+                textarea.value = resultText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('配分結果をコピーしました', 'success');
+            }
+        };
+    }
+
+    function drawRiskDonutChart(allocation) {
+        const canvas = document.getElementById('riskDonutCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, 44, 44);
+
+        let gradeA = 0, gradeB = 0, gradeC = 0;
+
+        betList.forEach(bet => {
+            if (bet.stake > 0) {
+                if (bet.grade === "A") gradeA += bet.stake;
+                else if (bet.grade === "B") gradeB += bet.stake;
+                else if (bet.grade === "C") gradeC += bet.stake;
+            }
+        });
+
+        const total = gradeA + gradeB + gradeC;
+        if (total === 0) return;
+
+        const centerX = 22;
+        const centerY = 22;
+        const radius = 20;
+        const innerRadius = 12;
+
+        let currentAngle = -Math.PI / 2;
+
+        const segments = [
+            { value: gradeA, color: '#43a047', label: '堅' },
+            { value: gradeB, color: '#1e88e5', label: '中' },
+            { value: gradeC, color: '#e53935', label: '穴' }
+        ];
+
+        segments.forEach(segment => {
+            if (segment.value === 0) return;
+
+            const angle = (segment.value / total) * Math.PI * 2;
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + angle);
+            ctx.arc(centerX, centerY, innerRadius, currentAngle + angle, currentAngle, true);
+            ctx.closePath();
+            ctx.fillStyle = segment.color;
+            ctx.fill();
+
+            currentAngle += angle;
+        });
+    }
+
+    // ============================
+    // その他の機能
+    // ============================
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('aiResultToast');
+        toast.textContent = message;
+        toast.className = 'ai-result-toast';
+        if (type === 'error') {
+            toast.classList.add('error');
+        }
+        toast.style.display = 'block';
+
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3000);
+    }
+
+    function saveCurrentState() {
+        if (!selectedRaceId) {
+            showToast('レースを選択してください', 'error');
+            return;
+        }
+
+        const state = {
+            raceId: selectedRaceId,
+            horseMarkMap: horseMarkMap,
+            betList: betList,
+            selectedMarkId: selectedMarkId,
+            currentSort: currentSort,
+            aiFilterState: aiFilterState,
+            budget: document.getElementById('budgetInput').value
+        };
+
+        const key = `state_${selectedRaceId}`;
+        if (saveToLocalStorage(key, state)) {
+            showToast('状態を保存しました（24時間有効）', 'success');
+        } else {
+            showToast('保存に失敗しました', 'error');
+        }
+    }
+
+    function loadSavedState() {
+        if (!selectedRaceId) {
+            showToast('レースを選択してください', 'error');
+            return;
+        }
+
+        const key = `state_${selectedRaceId}`;
+        const state = loadFromLocalStorage(key);
+
+        if (!state) {
+            showToast('保存データがありません', 'error');
+            return;
+        }
+
+        Object.assign(horseMarkMap, state.horseMarkMap || {});
+        betList = state.betList || [];
+        selectedMarkId = state.selectedMarkId || "honmei";
+        currentSort = state.currentSort || "final";
+        Object.assign(aiFilterState, state.aiFilterState || {});
+
+        if (state.budget) {
+            document.getElementById('budgetInput').value = state.budget;
+        }
+
+        if (state.aiFilterState) {
+            document.getElementById('filterAiWin').value = state.aiFilterState.minAiWin || '';
+            document.getElementById('filterAiQuinella').value = state.aiFilterState.minAiQuinella || '';
+            document.getElementById('filterAiShow').value = state.aiFilterState.minAiShow || '';
+            document.getElementById('filterFinal').value = state.aiFilterState.minFinal || '';
+        }
+
+        renderMarks();
+        renderCardBox();
+        renderBetList();
+        showToast('状態を復元しました', 'success');
+    }
+
+    function clearAllData() {
+        if (!confirm('すべてのデータをクリアしますか？')) {
+            return;
+        }
+
+        Object.keys(horseMarkMap).forEach(key => {
+            horseMarkMap[key] = null;
+        });
+        betList = [];
+        generatedCombos = [];
+        generatedBetType = null;
+
+        Object.keys(aiFilterState).forEach(key => {
+            aiFilterState[key] = null;
+        });
+
+        document.getElementById('filterAiWin').value = '';
+        document.getElementById('filterAiQuinella').value = '';
+        document.getElementById('filterAiShow').value = '';
+        document.getElementById('filterFinal').value = '';
+
+        renderMarks();
+        renderCardBox();
+        renderComboResult();
+        renderBetList();
+
+        document.getElementById('aiAllocationResult').style.display = 'none';
+
+        showToast('すべてクリアしました', 'success');
+    }
+
+    async function exportAsImage() {
+        const marksContainer = document.getElementById('marksContainer');
+
+        try {
+            showToast('画像を生成中...', 'info');
+
+            const canvas = await html2canvas(marksContainer, {
+                backgroundColor: '#ffffff',
+                scale: 2
+            });
+
+            const link = document.createElement('a');
+            const fileName = `horse_marks_${selectedRaceId}_${Date.now()}.png`;
+            link.download = fileName;
+            link.href = canvas.toDataURL();
+            link.click();
+
+            showToast('画像を保存しました', 'success');
+        } catch (error) {
+            console.error('画像エクスポートエラー:', error);
+            showToast('画像の生成に失敗しました', 'error');
+        }
+    }
+
+    // ============================
+    // イベントリスナー設定
+    // ============================
+    function setupCardboxControls() {
+        // ソートボタン - 人気順
+        document.getElementById("sortPopularityBtn").addEventListener("click", () => {
+            currentSort = "popularity";
+            updateSortButtons();
+            renderCardBox();
+        });
+
+        // ソートボタン - 単勝順
+        document.getElementById("sortWinBtn").addEventListener("click", () => {
+            currentSort = "win";
+            updateSortButtons();
+            renderCardBox();
+        });
+
+        // ソートボタン - 連対順
+        document.getElementById("sortQuinellaBtn").addEventListener("click", () => {
+            currentSort = "quinella";
+            updateSortButtons();
+            renderCardBox();
+        });
+
+        // ソートボタン - 複勝順
+        document.getElementById("sortShowBtn").addEventListener("click", () => {
+            currentSort = "show";
+            updateSortButtons();
+            renderCardBox();
+        });
+
+        // ソートボタン - 最終順
+        document.getElementById("sortFinalBtn").addEventListener("click", () => {
+            currentSort = "final";
+            updateSortButtons();
+            renderCardBox();
+        });
+
+        // フィルター入力
+        function hookFilterInput(id, key) {
+            const el = document.getElementById(id);
+            el.addEventListener("input", () => {
+                const v = el.value.trim();
+                aiFilterState[key] = v === "" ? null : parseInt(v, 10);
+                renderCardBox();
+            });
+        }
+
+        hookFilterInput("filterAiWin", "minAiWin");
+        hookFilterInput("filterAiQuinella", "minAiQuinella");
+        hookFilterInput("filterAiShow", "minAiShow");
+        hookFilterInput("filterFinal", "minFinal");
+    }
+
+    function updateSortButtons() {
+        // すべてのソートボタンをリセット
+        const buttons = {
+            'popularity': document.getElementById("sortPopularityBtn"),
+            'win': document.getElementById("sortWinBtn"),
+            'quinella': document.getElementById("sortQuinellaBtn"),
+            'show': document.getElementById("sortShowBtn"),
+            'final': document.getElementById("sortFinalBtn")
+        };
+
+        // すべてのボタンからアクティブクラスとドットを削除
+        Object.values(buttons).forEach(btn => {
+            btn.classList.remove("active");
+            const dot = btn.querySelector('.dot');
+            if (dot) dot.remove();
+        });
+
+        // 現在のソートボタンをアクティブに設定し、ドットを追加
+        if (buttons[currentSort]) {
+            buttons[currentSort].classList.add("active");
+            const dot = document.createElement('span');
+            dot.className = 'dot';
+            buttons[currentSort].insertBefore(dot, buttons[currentSort].firstChild);
+        }
+    }
+
+    function setupApiKeyManagement() {
+        const apiKeyInput = document.getElementById('geminiApiKey');
+        const saveBtn = document.getElementById('saveApiKeyBtn');
+        const aiButton = document.getElementById('aiButton');
+
+        const savedApiKey = loadFromLocalStorage('gemini_api_key');
+        if (savedApiKey) {
+            apiKeyInput.value = savedApiKey;
+            aiButton.disabled = false;
+        }
+
+        saveBtn.addEventListener('click', () => {
+            const apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                saveToLocalStorage('gemini_api_key', apiKey);
+                aiButton.disabled = false;
+                showToast('APIキーを保存しました', 'success');
+            } else {
+                showToast('APIキーを入力してください', 'error');
+            }
+        });
+
+        apiKeyInput.addEventListener('input', () => {
+            const hasKey = apiKeyInput.value.trim().length > 0;
+            aiButton.disabled = !hasKey;
+        });
+    }
+
+    async function setupRaceSelection() {
+        const raceSelect = document.getElementById('raceSelect');
+        const loadBtn = document.getElementById('loadRaceBtn');
+        const loadStatus = document.getElementById('loadStatus');
+
+        try {
+            loadStatus.textContent = '読込中...';
+            const races = await loadAllRaceData();
+
+            if (races.length === 0) {
+                loadStatus.textContent = 'レースなし';
+                return;
+            }
+
+            // レース選択をクリア
+            raceSelect.innerHTML = '<option value="">レースを選択してください</option>';
+
+            races.forEach(race => {
+                const raceId = race.race_id || race.data?.race_id;
+                const raceName = race.data?.race_name || race.race_name || '';
+
+                if (!raceId) return;
+
+                const option = document.createElement('option');
+                option.value = raceId;
+                option.textContent = `${raceId} - ${raceName}`;
+                raceSelect.appendChild(option);
+            });
+
+            loadStatus.textContent = `${races.length}レース`;
+
+            raceSelect.addEventListener('change', () => {
+                loadBtn.disabled = !raceSelect.value;
+            });
+
+            loadBtn.addEventListener('click', async () => {
+                const raceId = raceSelect.value;
+                if (!raceId) return;
+
+                await loadRaceData(raceId);
+            });
+
+        } catch (error) {
+            console.error('レース一覧取得エラー:', error);
+            loadStatus.textContent = 'エラー';
+            showToast('レース一覧の取得に失敗しました', 'error');
+        }
+    }
+
+    async function loadRaceData(raceId) {
+        const loadStatus = document.getElementById('loadStatus');
+
+        try {
+            loadStatus.textContent = '読込中...';
+
+            const raceData = await loadSingleRaceData(raceId);
+            if (!raceData) {
+                throw new Error('レースデータが見つかりません');
+            }
+
+            currentRaceData = raceData;
+            selectedRaceId = raceId;
+
+            // オッズデータを先に読み込む（人気順計算に必要）
+            const oddsData = await loadOddsData(raceId);
+            currentOddsData = oddsData;
+
+            // オッズデータを取得してから馬データを処理
+            processRaceData(raceData);
+
+            Object.keys(horseMarkMap).forEach(key => {
+                horseMarkMap[key] = null;
+            });
+            betList = [];
+            generatedCombos = [];
+            generatedBetType = null;
+
+            renderMarks();
+            renderCardBox();
+            setupPreviewControls();
+            renderComboResult();
+            renderBetList();
+
+            loadStatus.textContent = '読込完了';
+            showToast(`${raceId}のデータを読み込みました`, 'success');
+
+            const savedState = loadFromLocalStorage(`state_${raceId}`);
+            if (savedState) {
+                if (confirm('このレースの保存データがあります。復元しますか？')) {
+                    loadSavedState();
+                }
+            }
+
+        } catch (error) {
+            console.error('レースデータ読込エラー:', error);
+            loadStatus.textContent = 'エラー';
+            showToast('レースデータの読込に失敗しました', 'error');
+        }
+    }
+
+    function setupToolbar() {
+        document.getElementById('saveStateBtn').addEventListener('click', () => {
+            saveCurrentState();
+        });
+
+        document.getElementById('loadStateBtn').addEventListener('click', () => {
+            loadSavedState();
+        });
+
+        document.getElementById('exportImageBtn').addEventListener('click', () => {
+            exportAsImage();
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            clearAllData();
+        });
+    }
+
+    // ============================
+    // 初期化
+    // ============================
+    async function init() {
+        try {
+            clearExpiredStorage();
+
+            setupApiKeyManagement();
+            await setupRaceSelection();
+            setupToolbar();
+            setupCardboxControls();
+
+            // 生成方式切り替え
+            document.querySelectorAll('input[name="genType"]').forEach(radio => {
+                radio.addEventListener("change", e => {
+                    const isFlow = e.target.value === "flow";
+                    document.getElementById("flowSettings").style.display = isFlow ? "block" : "none";
+                    document.getElementById("formationSettings").style.display = isFlow ? "none" : "block";
+
+                    // 券種により3着表示を制御
+                    const betType = document.getElementById("betTypeSelect").value;
+                    const needs3rd = betType === "sanrenpuku" || betType === "sanrentan";
+                    document.getElementById("formation3rdRow").style.display =
+                        !isFlow && needs3rd ? "flex" : "none";
+                });
+            });
+
+            // 券種変更時の3着表示制御
+            document.getElementById("betTypeSelect").addEventListener("change", e => {
+                const betType = e.target.value;
+                const isFormation = document.querySelector('input[name="genType"]:checked')?.value === "formation";
+                const needs3rd = betType === "sanrenpuku" || betType === "sanrentan";
+                document.getElementById("formation3rdRow").style.display =
+                    isFormation && needs3rd ? "flex" : "none";
+            });
+
+            document.getElementById("generateButton").addEventListener("click", () => {
+                const genType = document.querySelector('input[name="genType"]:checked')?.value || "flow";
+                if (genType === "flow") {
+                    generateCombosFromMarks();
+                } else {
+                    generateFormationCombos();
+                }
+            });
+
+            document.getElementById("addToBetListButton").addEventListener("click", () => {
+                addGeneratedCombosToBetList();
+            });
+
+            document.getElementById("aiButton").addEventListener("click", () => {
+                executeAIAllocation();
+            });
+
+            const cardGrid = document.getElementById('cardBoxGrid');
+            if (cardGrid.children.length === 0) {
+                const msg = document.createElement('div');
+                msg.style.gridColumn = '1 / -1';
+                msg.style.padding = '20px';
+                msg.style.textAlign = 'center';
+                msg.style.color = '#999';
+                msg.style.fontSize = '11px';
+                msg.innerHTML = '上部のレース選択から<br>レースを選んで読込してください';
+                cardGrid.appendChild(msg);
+            }
+
+            renderMarks();
+            setupPreviewControls();
+            renderComboResult();
+            renderBetList();
+
+            console.log('馬印カードビルダー初期化完了');
+
+        } catch (error) {
+            console.error('初期化エラー:', error);
+            showToast('初期化に失敗しました', 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

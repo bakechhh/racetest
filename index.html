@@ -1058,7 +1058,38 @@
             </div>
             <div class="update-info" id="updateInfo">読み込み中...</div>
         </div>
-
+        <!-- 馬印カードビルダーへのリンクセクション -->
+        <div class="tool-link-section" style="background: white; border-radius: 15px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <h3 style="color: #667eea; margin-bottom: 10px; font-size: 18px;">🐴 馬印カードビルダー＋AI配分ツール</h3>
+            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
+                レースデータから馬に印を付けて、買い目を生成し、AI（Gemini）で資金配分を最適化するツールです。
+            </p>
+            <a href="./builder.html" target="_blank" style="
+                display: inline-block;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 10px;
+                font-weight: bold;
+                font-size: 14px;
+                box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);
+                transition: transform 0.2s, box-shadow 0.2s;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(102, 126, 234, 0.5)';"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(102, 126, 234, 0.4)';">
+                ツールを開く（別タブ）
+            </a>
+            <div style="margin-top: 10px; padding: 10px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe082;">
+                <p style="color: #f57c00; font-size: 12px; margin-bottom: 5px;">
+                    <strong>⚠️ 注意事項：</strong>
+                </p>
+                <ul style="color: #666; font-size: 12px; margin-left: 20px;">
+                    <li>保存データは24時間で自動削除されます</li>
+                    <li>AI配分機能にはGemini APIキーが必要です</li>
+                    <li>買い目は自己責任でご利用ください</li>
+                </ul>
+            </div>
+        </div>
         <!-- フィルター -->
         <div class="filters">
             <div class="filter-group">
