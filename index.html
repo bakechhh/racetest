@@ -1141,6 +1141,7 @@
                         <option value="">開催場所切り替え</option>
                     </select>
                     <button class="nav-btn" onclick="openScatterModal()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">📊 散布図</button>
+                    <button class="nav-btn" id="refreshRaceBtn" onclick="refreshCurrentRace()" style="background: #10b981; color: white;">🔄 更新</button>
                 </div>
                 <div class="header-controls">
                     <div class="view-mode-buttons">
@@ -2937,11 +2938,11 @@ OpenAIのアカウントを作成</a>してAPIキーを取得してください�
                 const oddsData = await loadOddsData(raceId);
                 if (oddsData && oddsData.length > 0) {
                     addPopularityToHorses(race, oddsData);
-                    // オッズタブを自動更新
+                    // オッズタブを自動更新（キャッシュから取得済みなので再取得しない）
                     currentOddsData = oddsData;
-                    // オッズタブに表示（window.loadAndRenderOddsを呼び出す）
-                    if (typeof window.loadAndRenderOdds === 'function') {
-                        window.loadAndRenderOdds();
+                    // オッズタブに表示（renderOddsを直接呼ぶ）
+                    if (typeof renderOdds === 'function') {
+                        renderOdds();
                     }
                 } else {
                     document.getElementById('oddsContent').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">オッズデータが見つかりませんでした。</div>';
@@ -6443,6 +6444,48 @@ window.addToMemoFromFormation = function() {
             setTimeout(() => {
                 document.body.removeChild(progressDiv);
             }, 5000);
+        }
+        
+        // 現在のレースを強制再取得（更新ボタン用）
+        async function refreshCurrentRace() {
+            if (!selectedRace) {
+                alert('レースが選択されていません');
+                return;
+            }
+            
+            const btn = document.getElementById('refreshRaceBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '更新中...';
+            btn.disabled = true;
+            
+            try {
+                const raceId = `${selectedRace.place}${selectedRace.round}R`;
+                const result = await window.refreshRaceData(raceId);
+                
+                // 画面を再描画
+                if (result.raceData) {
+                    selectedRace = result.raceData;
+                    window.selectedRace = result.raceData;
+                }
+                if (result.oddsData) {
+                    currentOddsData = result.oddsData;
+                    addPopularityToHorses(selectedRace, result.oddsData);
+                }
+                
+                // 馬一覧を再描画
+                const cardElement = document.querySelector('.race-card.active');
+                if (cardElement) {
+                    await showHorses(selectedRace, cardElement);
+                }
+                
+                console.log('[更新完了]', raceId);
+            } catch (error) {
+                console.error('更新エラー:', error);
+                alert('更新に失敗しました: ' + error.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
         }
     </script>
 
