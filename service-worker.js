@@ -1,11 +1,11 @@
 const CACHE_NAME = 'keiba-ai-v1';
 const urlsToCache = [
-  '/keiba-index/',
-  '/keiba-index/index.html',
-  '/keiba-index/app.js',
-  '/keiba-index/data-loader.js',
-  '/keiba-index/manifest.json',
-  '/keiba-index/notification.js',
+  '/',
+  '/index.html',
+  '/app.js',
+  '/data-loader.js',
+  '/manifest.json',
+  '/notification.js',
   'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js'
 ];
 
