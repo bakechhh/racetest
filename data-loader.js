@@ -1,155 +1,244 @@
 /**
- * データローダー:
- * - レースデータ: Supabase の race_data_json テーブルから読み込む
- * - オッズデータ: 既存の GitHub Pages 上の odds/*.json から読み込む
+ * データローダー（キャッシュ機能付き）:
+ * - 初回アクセス時に全データを一括取得してキャッシュ
+ * - レース切替時はキャッシュから即座に返す（Supabase呼ばない）
+ * - 手動更新ボタンで特定レースだけ再取得可能
  *
- * app.js からは以下の3関数を呼び出す前提:
- *   - loadAllRaceData()
- *   - loadOddsData(raceId)
- *   - loadSingleRaceData(raceId)
- *
- * 関数名・返り値の形式は従来と完全互換。
+ * app.js / index.html からは以下の関数を呼び出す:
+ *   - loadAllRaceData()      : 全レースデータ取得
+ *   - loadOddsData(raceId)   : オッズデータ取得
+ *   - loadSingleRaceData(raceId) : 単一レースデータ取得
+ *   - refreshRaceData(raceId)    : 特定レースを強制再取得（新規追加）
+ *   - refreshAllData()           : 全データを強制再取得（新規追加）
  */
 
-// GitHub Pages 上のオッズJSONのベースURL（従来どおり）
-const GITHUB_PAGES_BASE = 'https://bakechhh.github.io/keiba-index';
+// ========================================
+// キャッシュ変数
+// ========================================
+let cachedAllRaces = null;           // 全レースデータの配列
+let cachedRaceDataMap = {};          // race_id → レースデータ
+let cachedOddsDataMap = {};          // race_id → オッズデータ
+let cacheInitialized = false;        // 初期化済みフラグ
+let cacheInitPromise = null;         // 初期化中のPromise（重複防止）
 
-// オッズ種別（現状は使っていないが、互換のため残しておく）
-const ODDS_TYPES = [
-    'tansho',
-    'fukusho',
-    'wakuren',
-    'umaren',
-    'wide',
-    'umatan',
-    'sanrenpuku',
-    'sanrentan',
-];
-
-/**
- * Supabase クライアント取得ヘルパー
- * index.html 側で下記のように定義されている前提:
- *
- * <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- * <script>
- *   window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
- * </script>
- */
+// ========================================
+// Supabase クライアント取得
+// ========================================
 function getSupabaseClient() {
     const client = window.supabaseClient;
     if (!client) {
-        console.error('Supabase クライアント (window.supabaseClient) が初期化されていません。index.html を確認してください。');
+        console.error('Supabase クライアント (window.supabaseClient) が初期化されていません。');
         throw new Error('Supabase client not initialized');
     }
     return client;
 }
 
-/**
- * 全レースデータを読み込む
- * - Supabase の race_data_json テーブルから data(jsonb) をそのまま取得
- * - 返り値は従来と同じく「レースオブジェクトの配列」
- *
- * @returns {Promise<Array>} レースデータの配列
- */
-async function loadAllRaceData() {
-    try {
-        const supabase = getSupabaseClient();
-
-        // race_data_json から data カラムを全件取得
-        const { data, error } = await supabase
-            .from('race_data_json')
-            .select('data');
-
-        if (error) {
-            console.error('Supabase からのレースデータ取得エラー:', error);
-            throw new Error('Supabase レースデータ取得に失敗しました');
-        }
-
-        if (!data || data.length === 0) {
-            console.warn('Supabase にレースデータが存在しません');
-            return [];
-        }
-
-        // data 配列の各要素は { data: <京都1R.jsonの中身> } という形
-        const allRaceData = data
-            .map((row) => row.data)
-            .filter((race) => race != null);
-
-        return allRaceData;
-    } catch (error) {
-        console.error('レースデータの読み込みエラー:', error);
-        throw error;
+// ========================================
+// キャッシュ初期化（全データ一括取得）
+// ========================================
+async function initializeCache() {
+    // 既に初期化済みならスキップ
+    if (cacheInitialized) {
+        return;
     }
+    
+    // 初期化中なら待機（重複リクエスト防止）
+    if (cacheInitPromise) {
+        return cacheInitPromise;
+    }
+    
+    cacheInitPromise = (async () => {
+        try {
+            console.log('[DataLoader] キャッシュ初期化開始...');
+            const supabase = getSupabaseClient();
+            
+            // レースデータ一括取得
+            const { data: raceRows, error: raceError } = await supabase
+                .from('race_data_json')
+                .select('race_id, data');
+            
+            if (raceError) {
+                console.error('レースデータ取得エラー:', raceError);
+                throw raceError;
+            }
+            
+            // オッズデータ一括取得
+            const { data: oddsRows, error: oddsError } = await supabase
+                .from('race_odds_json')
+                .select('race_id, data');
+            
+            if (oddsError) {
+                console.error('オッズデータ取得エラー:', oddsError);
+                throw oddsError;
+            }
+            
+            // キャッシュに格納
+            cachedAllRaces = [];
+            cachedRaceDataMap = {};
+            cachedOddsDataMap = {};
+            
+            if (raceRows) {
+                raceRows.forEach(row => {
+                    if (row.data) {
+                        cachedAllRaces.push(row.data);
+                        cachedRaceDataMap[row.race_id] = row.data;
+                    }
+                });
+            }
+            
+            if (oddsRows) {
+                oddsRows.forEach(row => {
+                    if (row.data) {
+                        cachedOddsDataMap[row.race_id] = row.data;
+                    }
+                });
+            }
+            
+            cacheInitialized = true;
+            console.log(`[DataLoader] キャッシュ初期化完了: ${cachedAllRaces.length}レース, ${Object.keys(cachedOddsDataMap).length}オッズ`);
+            
+        } catch (error) {
+            console.error('[DataLoader] キャッシュ初期化エラー:', error);
+            throw error;
+        } finally {
+            cacheInitPromise = null;
+        }
+    })();
+    
+    return cacheInitPromise;
 }
 
-/**
- * 特定のレースのレースデータを読み込む
- * - Supabase の race_data_json から race_id で1件取得
- * - 返り値は従来と同じく「京都1R.jsonの1オブジェクト」
- *
- * @param {string} raceId - レースID（例: 東京1R, 京都10R）
- * @returns {Promise<Object>} レースデータ
- */
-async function loadSingleRaceData(raceId) {
-    try {
-        const supabase = getSupabaseClient();
+// ========================================
+// 全レースデータを読み込む
+// ========================================
+async function loadAllRaceData() {
+    await initializeCache();
+    return cachedAllRaces || [];
+}
 
-        const { data, error } = await supabase
+// ========================================
+// 特定のレースのレースデータを読み込む
+// ========================================
+async function loadSingleRaceData(raceId) {
+    await initializeCache();
+    
+    const data = cachedRaceDataMap[raceId];
+    if (!data) {
+        console.warn(`[DataLoader] レースデータが見つかりません: ${raceId}`);
+        throw new Error(`レースデータが見つかりません: ${raceId}`);
+    }
+    return data;
+}
+
+// ========================================
+// 特定のレースのオッズデータを読み込む
+// ========================================
+async function loadOddsData(raceId) {
+    await initializeCache();
+    
+    const data = cachedOddsDataMap[raceId];
+    if (!data) {
+        console.warn(`[DataLoader] オッズデータが見つかりません: ${raceId}`);
+        return [];
+    }
+    return data;
+}
+
+// ========================================
+// 特定レースのデータを強制再取得（更新ボタン用）
+// ========================================
+async function refreshRaceData(raceId) {
+    try {
+        console.log(`[DataLoader] レースデータ再取得: ${raceId}`);
+        const supabase = getSupabaseClient();
+        
+        // レースデータ再取得
+        const { data: raceRow, error: raceError } = await supabase
             .from('race_data_json')
-            .select('data')
+            .select('race_id, data')
             .eq('race_id', raceId)
             .maybeSingle();
-
-        if (error) {
-            console.error(`Supabase レースデータ取得エラー: ${raceId}`, error);
-            throw new Error(`Supabase レースデータ取得に失敗しました: ${raceId}`);
+        
+        if (raceError) {
+            console.error('レースデータ再取得エラー:', raceError);
+            throw raceError;
         }
-
-        if (!data || !data.data) {
-            console.error(`Supabase にレースデータが見つかりません: ${raceId}`);
-            throw new Error(`レースデータが見つかりません: ${raceId}`);
+        
+        // オッズデータ再取得
+        const { data: oddsRow, error: oddsError } = await supabase
+            .from('race_odds_json')
+            .select('race_id, data')
+            .eq('race_id', raceId)
+            .maybeSingle();
+        
+        if (oddsError) {
+            console.error('オッズデータ再取得エラー:', oddsError);
+            throw oddsError;
         }
-
-        // data.data が racedata/〇〇.json の中身そのもの
-        return data.data;
+        
+        // キャッシュ更新
+        if (raceRow && raceRow.data) {
+            cachedRaceDataMap[raceId] = raceRow.data;
+            // cachedAllRaces も更新
+            const index = cachedAllRaces.findIndex(r => 
+                `${r.place}${r.round}R` === raceId || r.race_number === raceId
+            );
+            if (index >= 0) {
+                cachedAllRaces[index] = raceRow.data;
+            }
+        }
+        
+        if (oddsRow && oddsRow.data) {
+            cachedOddsDataMap[raceId] = oddsRow.data;
+        }
+        
+        console.log(`[DataLoader] レースデータ再取得完了: ${raceId}`);
+        return {
+            raceData: cachedRaceDataMap[raceId],
+            oddsData: cachedOddsDataMap[raceId]
+        };
+        
     } catch (error) {
-        console.error('レースデータの読み込みエラー:', error);
+        console.error(`[DataLoader] レースデータ再取得エラー: ${raceId}`, error);
         throw error;
     }
 }
 
-/**
- * 特定のレースのオッズデータを読み込む（全券種）
- * - 現時点では従来どおり GitHub Pages 上の odds/*.json を参照
- * - 将来 JRA 版 Supabase に切り替えるときは、この関数だけ差し替えればよい
- *
- * @param {string} raceId - レースID（例: 東京1R, 京都10R）
- * @returns {Promise<Array>} オッズデータの配列（全券種が含まれる）
- */
- async function loadOddsData(raceId) {
-     const supabase = getSupabaseClient();
+// ========================================
+// 全データを強制再取得
+// ========================================
+async function refreshAllData() {
+    console.log('[DataLoader] 全データ強制再取得...');
+    cacheInitialized = false;
+    cachedAllRaces = null;
+    cachedRaceDataMap = {};
+    cachedOddsDataMap = {};
+    await initializeCache();
+    return {
+        raceCount: cachedAllRaces.length,
+        oddsCount: Object.keys(cachedOddsDataMap).length
+    };
+}
 
-     const { data, error } = await supabase
-         .from("race_odds_json")
-         .select("data")
-         .eq("race_id", raceId)
-         .maybeSingle();
+// ========================================
+// キャッシュ状態を取得（デバッグ用）
+// ========================================
+function getCacheStatus() {
+    return {
+        initialized: cacheInitialized,
+        raceCount: cachedAllRaces ? cachedAllRaces.length : 0,
+        oddsCount: Object.keys(cachedOddsDataMap).length,
+        raceIds: Object.keys(cachedRaceDataMap),
+        oddsIds: Object.keys(cachedOddsDataMap)
+    };
+}
 
-     if (error) {
-         console.warn("Supabase オッズ取得エラー:", raceId, error);
-         return [];
-     }
-     if (!data || !data.data) {
-         console.warn("Supabase にオッズデータがありません:", raceId);
-         return [];
-     }
-
-     // data.data が odds/京都1R.json の中身そのまま
-     return data.data;
- }
-
-
-// 関数をグローバルに公開（app.js から今まで通り呼べるようにする）
+// ========================================
+// グローバルに公開
+// ========================================
 window.loadAllRaceData = loadAllRaceData;
 window.loadOddsData = loadOddsData;
 window.loadSingleRaceData = loadSingleRaceData;
+window.refreshRaceData = refreshRaceData;
+window.refreshAllData = refreshAllData;
+window.getCacheStatus = getCacheStatus;
