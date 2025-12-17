@@ -3,6 +3,7 @@
  * - 初回アクセス時に全データを一括取得してキャッシュ
  * - レース切替時はキャッシュから即座に返す（Supabase呼ばない）
  * - 手動更新ボタンで特定レースだけ再取得可能
+ * - 日付が変わったらキャッシュを自動破棄
  *
  * app.js / index.html からは以下の関数を呼び出す:
  *   - loadAllRaceData()      : 全レースデータ取得
@@ -20,6 +21,30 @@ let cachedRaceDataMap = {};          // race_id → レースデータ
 let cachedOddsDataMap = {};          // race_id → オッズデータ
 let cacheInitialized = false;        // 初期化済みフラグ
 let cacheInitPromise = null;         // 初期化中のPromise（重複防止）
+let cacheDate = null;                // キャッシュした日付（YYYY-MM-DD）
+
+// ========================================
+// 日付ユーティリティ
+// ========================================
+function getTodayString() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function isCacheExpired() {
+    if (!cacheDate) return true;
+    return cacheDate !== getTodayString();
+}
+
+function clearCache() {
+    console.log('[DataLoader] キャッシュをクリア');
+    cachedAllRaces = null;
+    cachedRaceDataMap = {};
+    cachedOddsDataMap = {};
+    cacheInitialized = false;
+    cacheInitPromise = null;
+    cacheDate = null;
+}
 
 // ========================================
 // Supabase クライアント取得
@@ -37,6 +62,11 @@ function getSupabaseClient() {
 // キャッシュ初期化（全データ一括取得）
 // ========================================
 async function initializeCache() {
+    // 日付が変わっていたらキャッシュをクリア
+    if (isCacheExpired()) {
+        clearCache();
+    }
+    
     // 既に初期化済みならスキップ
     if (cacheInitialized) {
         return;
@@ -95,7 +125,8 @@ async function initializeCache() {
             }
             
             cacheInitialized = true;
-            console.log(`[DataLoader] キャッシュ初期化完了: ${cachedAllRaces.length}レース, ${Object.keys(cachedOddsDataMap).length}オッズ`);
+            cacheDate = getTodayString();
+            console.log(`[DataLoader] キャッシュ初期化完了: ${cachedAllRaces.length}レース, ${Object.keys(cachedOddsDataMap).length}オッズ (${cacheDate})`);
             
         } catch (error) {
             console.error('[DataLoader] キャッシュ初期化エラー:', error);
